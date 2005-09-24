@@ -1,0 +1,32 @@
+Makefile-Parser version 0.01
+============================
+
+This is a parser for Makefiles. At this very early stage, the parser
+only support a very limited set of features, so it may not do what
+you expected it to do. Currently its main purpose is to provide basic
+support for another module named GraphViz::Make, which is aimed
+to render the buiding processes specified by a Makefile using
+the amazing GraphViz library. The L<Make> module is not satisfactory
+for this purpose, so I decided to build one of my own.
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+DEPENDENCIES
+
+This module requires these other modules and libraries:
+
+  Test::More (for testing purpose only)
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2005 Agent Zhang
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.

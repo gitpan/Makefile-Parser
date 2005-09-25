@@ -1,6 +1,6 @@
 #: Makefile/Parser.pm
 #: Implementation for Makefile::Parser
-#: v0.01
+#: v0.02
 #: Copyright (c) 2005 Agent Zhang
 #: 2005-09-24 2005-09-24
 
@@ -10,7 +10,7 @@ use strict;
 #use Data::Dumper;
 
 our $Debug = 0;
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 our $Error;
 
 # usage: $class->new($makefile);
@@ -183,45 +183,135 @@ Makefile::Parser - A simple Parser for Makefiles
 
   use Makefile::Parser;
 
-  # Equivalent to "->new('Makefile');"
-  $mk = Makefile::Parser->new or
+  # Equivalent to ->new('Makefile');
+  $parser = Makefile::Parser->new or
       die Makefile::Parser->error;
 
   # Get last value assigned to the specified variable 'CC':
-  print $mk->var('CC');
+  print $parser->var('CC');
 
-  $tar = $mk->target('install');
+  $tar = $parser->target('install');
   # Get the name of the target, say, 'install' here:
   print $tar->name;
 
   # Get the dependencies for the target 'install':
   @depends = $tar->depends;
 
-  # The first element of @depends itself is also a target:
-  $tar = $depends[0]->name;
-
   # Access the shell command used to build the current target.
-  $cmd = $tar->cmd;
+  @cmds = $tar->commands;
 
   # Parse another file using the same Parser object:
-  $mk->parse('Makefile.old');
+  $parser->parse('Makefile.old') or
+    die Makefile::Parser->error;
 
   # Get the target who is specified by variable EXE_FILE
-  my $tar = $mk->target($mk->var('EXE_FILE'));
+  my $tar = $parser->target($parser->var('EXE_FILE'));
 
 =head1 DESCRIPTION
 
 This is a parser for Makefiles. At this very early stage, the parser
 only support a very limited set of features, so it may not do what
 you expected it to do. Currently its main purpose is to provide basic
-support for another module named GraphViz::Make, which is aimed
-to render the buiding processes specified by a Makefile using
+support for another module named L<GraphViz::Make>, which is aimed
+to render the building processes specified by a Makefile using
 the amazing GraphViz library. The L<Make> module is not satisfactory
 for this purpose, so I decided to build one of my own.
 
 I have a plan to improve this parser constantly.
 
-=head2 EXPORT
+=head1 The Makefile::Parser Class
+
+This class provide the interface to the Makefile parser.
+
+=head2 METHODS
+
+=over
+
+=item $class-E<gt>new(I<Makefile-name>)
+
+It's the constructor for the Parser class. You may provide the path
+of your Makefile as the argument which is default to 'Makefile'. It
+is worth mentioning that the constructor will call ->parse method
+internally.
+
+=item $obj-E<gt>parse(I<Makefile-name>)
+
+This method parse the specified Makefile (not optional). It is only
+useful when you decide to parse another Makefile using the same
+Parser object. Because the invocation of ->new will call this method
+automatically, please don't call this method immediately after you
+create the Parser object. There's no harm to do this, but you'll be
+repeating the parsing process.
+
+When an error occurs during the parsing procedure, ->parse will return
+undef. Otherwise, a reference to Parser object itself is returned.
+It is recommended to check the return value every time you call this
+method. The detailed error info can be obtained by calling the ->error
+method.
+
+=item $obj-E<gt>error
+
+It returns the error info set by the most recent failing operation, such
+as a parsing failure.
+
+=item $obj-E<gt>var($variable_name)
+
+The var method returns the value of the given variable. Since the value of
+variables can be reset multiple times in the Makefile, so what you get
+is always the last value set to the variable. It's worth noting that
+variable reassignment can be handled appropriately during parsing since
+the whole parsing process is a one-pass operation compared to the multiple-pass
+strategy used by the CPAN module L<Make>.
+
+=item $obj-E<gt>target($target_name)
+
+This method returns a Makefile::Target object with the name specified.
+It will returns undef if the rules for the given target is not described
+by the Makefile.
+
+It is important not to send something like "$(MY_LIB)" as the target name.
+Only raw values are acceptable. If you really want to do something like
+this, please use the following code:
+
+    my $tar = $parser->target($parser->var('MY_LIB'));
+
+but this code will break if you have reassigned values to variable MY_LIB in
+your Makefile.
+
+=back
+
+=head1 The Makefile::Target Class
+
+=head2 METHODS
+
+=over
+
+=item $class-E<gt>new($target_name, $colon_type)
+
+This is the constructor for class Makefile::Target. The first argument is the 
+target name which can't be a Makefile variable, the second one is a single
+colon or a double colon which is used by the rule definition in Makefile.
+
+This method is usually called internally by the Makefile::Parser class. It
+doesn't make much sense to me if the user has a need to call it manually.
+
+=item $obj-E<gt>name
+
+It will return the name of the current Target object.
+
+=item $obj-E<gt>depends
+
+You can get the list dependencies for the current target. If no dependencies are
+specified in the Makefile for the target, an empty array will be returned.
+
+=item $obj-E<gt>commands
+
+This method returns a list of shell commands used to build the current target.
+If no shell commands is given in the Makefile, an empty array will be returned.
+
+=back
+
+=head1 EXPORT
 
 None by default.
 

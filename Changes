@@ -4,3 +4,6 @@ Revision history for Perl extension Makefile::Parser.
 	- original version; created by h2xs 1.23 with options
 		-XA -b 5.6.1 Makefile::Parser
 
+0.02 9/25/2005
+	- Fix a bug in the SYNOPSIS of the POD doc. Add many
+	  stuff to the POD doc too.

@@ -1,22 +1,23 @@
 #: Makefile-Parser.t
 #: Test script for Makefile/Parser.pm
-#: v0.02
+#: v0.03
 #: Copyright (c) 2005 Agent Zhang
-#: 2005-09-24 2005-09-24
+#: 2005-09-24 2005-09-30
 
 use strict;
 
 my $dir = -d 't' ? 't' : '.';
 
-use Test::More tests => 58;
+use Test::More tests => 84;
 use Makefile::Parser;
 
 $Makefile::Parser::Debug = 0;
 my $pack = 'Makefile::Parser';
 
-my $mk = $pack->new("$dir/Makefile");
+my $mk = $pack->new;
 ok $mk, 'object defined';
 isa_ok $mk, 'Makefile::Parser';
+ok $mk->parse("$dir/Makefile");
 is $mk->{_file}, "$dir/Makefile";
 can_ok $mk, 'error';
 ok !defined $pack->error;
@@ -45,6 +46,14 @@ is $mk->var('C_MIN_T_FILES'), join(' ', qw/t\\cpat_cover.ast.t t\\cpat_cover.t
 is $mk->var('EXE'), "hex2bin.exe";
 is $mk->var('COD'), "main.cod";
 
+is scalar($mk->vars), 21;
+my @tars = $mk->targets;
+is scalar(@tars), 80;
+isa_ok $tars[0], 'Makefile::Target';
+
+my @roots = $mk->roots;
+is join(' ', sort @roots), 'clean cmintest ctest doc mintest smoke test';
+
 my $tar = $mk->target('all');
 ok $tar;
 isa_ok $tar, 'Makefile::Target';
@@ -56,6 +65,9 @@ is scalar(@depends), scalar(@deps);
 is join(' ', @depends), join(' ', @deps);
 is join("\n", $tar->commands), '';
 is $tar->colon_type, '::';
+
+my $tar2 = $mk->target;
+is $tar, $tar2;
 
 $tar = $mk->target($mk->var('IDU_LIB'));
 ok $tar;
@@ -108,6 +120,42 @@ is $tar->colon_type, ':';
 ok !defined($mk->parse('Makefile.bar.bar')), 'object not defined';
 like(Makefile::Parser->error, qr/Cannot open Makefile.bar.bar for reading:.*/);
 
-$mk = Makefile::Parser->new('Makefile.bar.bar');
-ok !defined $mk, 'object not defined';
+ok !$mk->parse('Makefile.bar.bar');
+ok defined $mk, 'object defined';
 like(Makefile::Parser->error, qr/Cannot open Makefile.bar.bar for reading:.*/);
+
+$mk = $pack->new;
+$tar = $mk->target('install');
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'install';
+is $mk->{_file}, "Makefile";
+
+$mk = $pack->new;
+$tar = $mk->target;
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'makemakerdflt';
+is $mk->{_file}, "Makefile";
+
+$mk = $pack->new;
+$tar = $mk->target;
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'makemakerdflt';
+is $mk->{_file}, "Makefile";
+
+$mk = $pack->new;
+my @vars = $mk->vars;
+ok @vars > 5;
+ok $vars[0];
+is $mk->{_file}, "Makefile";
+
+$mk = $pack->new;
+@tars = $mk->targets;
+ok @tars > 5;
+isa_ok $tars[0], 'Makefile::Target';
+is $mk->{_file}, "Makefile";
+
+my $mk2 = $mk->new;
+isa_ok $mk, 'Makefile::Parser';

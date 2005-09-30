@@ -1,9 +1,18 @@
 Revision history for Perl extension Makefile::Parser.
 
-0.01  Sat Sep 24 10:22:01 2005
-	- original version; created by h2xs 1.23 with options
-		-XA -b 5.6.1 Makefile::Parser
+0.03 9/30/2005
+        - Force the user to call the ->parse method after he/she constructs every Makefile::Parser object.
+          That is to say, the constructor of the Makefile::Parser class won't call ->parse internally
+          from now on.
+	- Add error checking code and corresponding tests for Parser objects which has never parsed anything.
+	- Add support of default target to the ->target method of the Makefile::Parser class.
+        - Add method ->roots to the Makefile::Parser class which returns the "root targets" for the
+	  Makefile.
 
 0.02 9/25/2005
-	- Fix a bug in the SYNOPSIS of the POD doc. Add many
-	  stuff to the POD doc too.
+        - Fix a bug in the SYNOPSIS of the POD doc.
+	- Add many other stuff to the POD doc too.
+
+0.01  Sat Sep 24 10:22:01 2005
+        - original version; created by h2xs 1.23 with options
+                -XA -b 5.6.1 Makefile::Parser

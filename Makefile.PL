@@ -4,7 +4,7 @@ my $plmake = "script/plmake";
 
 name            ('Makefile-Parser');
 version_from    ('lib/Makefile/Parser.pm');
-abstract       ( 'Parser for Makefiles' );
+abstract       ( 'A Simple Parser for Makefiles' );
 author          ('Agent Zhang <agent2002@126.com>');
 license         ('perl');
 #install_script  ($plmake);

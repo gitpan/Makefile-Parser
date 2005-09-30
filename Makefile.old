@@ -10,7 +10,7 @@
 #
 #   MakeMaker Parameters:
 
-#     ABSTRACT => q[Parser for Makefiles]
+#     ABSTRACT => q[A Simple Parser for Makefiles]
 #     AUTHOR => q[Agent Zhang <agent2002@126.com>]
 #     DIR => []
 #     DISTNAME => q[Makefile-Parser]
@@ -764,7 +764,7 @@ testdb_static :: testdb_dynamic
 ppd:
 	$(NOECHO) $(ECHO) "<SOFTPKG NAME=\"$(DISTNAME)\" VERSION=\"0,02,0,0\">" > $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) "    <TITLE>$(DISTNAME)</TITLE>" >> $(DISTNAME).ppd
-	$(NOECHO) $(ECHO) "    <ABSTRACT>Parser for Makefiles</ABSTRACT>" >> $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) "    <ABSTRACT>A Simple Parser for Makefiles</ABSTRACT>" >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) "    <AUTHOR>Agent Zhang &lt;agent2002@126.com&gt;</AUTHOR>" >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) "    <IMPLEMENTATION>" >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) "        <DEPENDENCY NAME=\"Test-More\" VERSION=\"0,0,0,0\" />" >> $(DISTNAME).ppd

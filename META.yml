@@ -1,5 +1,5 @@
 name: Makefile-Parser
-version: 0.04
+version: 0.05
 abstract: A Simple Parser for Makefiles
 author: Agent Zhang <agent2002@126.com>
 license: perl

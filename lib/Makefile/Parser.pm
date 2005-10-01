@@ -1,8 +1,8 @@
 #: Makefile/Parser.pm
 #: Implementation for Makefile::Parser
-#: v0.04
+#: v0.05
 #: Copyright (c) 2005 Agent Zhang
-#: 2005-09-24 2005-09-30
+#: 2005-09-24 2005-10-01
 
 package Makefile::Parser;
 
@@ -11,7 +11,7 @@ use strict;
 #use Data::Dumper;
 
 our $Debug = 0;
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 our $Error;
 
 # usage: $class->new;
@@ -47,10 +47,8 @@ sub parse {
     my $first_tar = 1;
     while (<$in>) {
         next if /^\s*#/;
-        if ($Debug) {
-            $tar_name = '' unless defined $var;
-            warn "(tar: $tar_name) Switching to tate $state with $_";
-        }
+        #$tar_name = '' unless defined $var;
+        #warn "(tar: $tar_name) Switching to tate $state with $_";
         #warn $state if $state ne 'S_IDLE';
         chomp;
         while (my ($key, $val) = each %$rvars) {
@@ -62,8 +60,9 @@ sub parse {
             if ($value =~ s/\s+\\$//o) {
                 $state = 'S_IN_VAL' ;
             } else {
+                $value =~ s/\^\\$/\\/;
                 $rvars->{$var} = $value;
-                warn "$var <=> $value\n" if $Debug;
+                #warn "$var <=> $value\n";
                 $state = 'S_IDLE';
             }
             #warn "$1 * $2 * $3";
@@ -73,8 +72,9 @@ sub parse {
             $value .= " $1";
             if ($value !~ s/\s+\\$//o) {
                 $state = 'S_IDLE' ;
+                $value =~ s/\^\\$/\\/;
                 $rvars->{$var} = $value;
-                warn "$var <=> $value\n" if $Debug;
+                #warn "$var <=> $value\n";
             }
         }
         elsif (($state eq 'S_IDLE' or $state eq 'S_CMD') and /^(\S[^:]*) (::?) \s* (.*)$/xo) {
@@ -82,7 +82,7 @@ sub parse {
             $colon_type = $2;
             $depends = $3;
             $tar_name =~ s/^\s+|\s+$//;
-            warn "Adding target $tar_name...\n" if $Debug;
+            #warn "Adding target $tar_name...\n";
             $tar = Makefile::Target->new($tar_name, $colon_type);
             $tars{$tar_name} = $tar;
             if ($first_tar) {
@@ -92,6 +92,7 @@ sub parse {
             if ($depends =~ s/\s+\\$//o) {
                 $state = 'S_IN_DEPENDS';
             } else {
+                $depends =~ s/\^\\$/\\/;
                 $state = 'S_CMD';
             }
             my @depends = split /\s+/, $depends;
@@ -101,6 +102,7 @@ sub parse {
         elsif ($state eq 'S_IN_DEPENDS' and /^\s+ (.*)$/xo) {
             $depends = $1;
             if ($depends !~ s/\s+\\$//o) {
+                $depends =~ s/\^\\$/\\/;
                 my @depends = split /\s+/, $depends;
                 map { $self->{_depends}->{$_} = 1 } @depends;
                 $tar->add_depend(@depends);
@@ -126,7 +128,7 @@ sub parse {
         #}
     }
     $self->{_tars} = \%tars;
-    warn Data::Dumper->Dump([\%tars], ['TARGETS']) if $Debug;
+    #warn Data::Dumper->Dump([\%tars], ['TARGETS']);
     close $in;
     return $self;
 }
@@ -263,14 +265,17 @@ Makefile::Parser - A Simple Parser for Makefiles
 =head1 DESCRIPTION
 
 This is a parser for Makefiles. At this very early stage, the parser
-only support a very limited set of features, so it may not do what
-you expected it to do. Currently its main purpose is to provide basic
+only supports a very limited set of features, so it may not do what
+you expected. Currently its main purpose is to provide basic
 support for another module named L<Makefile::GraphViz>, which is aimed
 to render the building processes specified by a Makefile using
 the amazing GraphViz library. The L<Make> module is not satisfactory
 for this purpose, so I decided to build one of my own.
 
-I have a plan to improve this parser constantly.
+B<IMPORTANT!>
+This stuff is highly experimental and is currently at B<ALPHA> stage, so
+production use is strongly discouraged. Anyway, I have the plan to 
+improve this stuff unfailingly.
 
 =head1 The Makefile::Parser Class
 
@@ -409,8 +414,8 @@ L<Devel::Cover> report on this module test suite.
     ---------------------------- ------ ------ ------ ------ ------ ------ ------
     File                           stmt   bran   cond    sub    pod   time  total
     ---------------------------- ------ ------ ------ ------ ------ ------ ------
-    blib/lib/Makefile/Parser.pm    98.4   83.9   87.1  100.0  100.0  100.0   93.6
-    Total                          98.4   83.9   87.1  100.0  100.0  100.0   93.6
+    blib/lib/Makefile/Parser.pm   100.0   95.5   87.1  100.0  100.0  100.0   97.2
+    Total                         100.0   95.5   87.1  100.0  100.0  100.0   97.2
     ---------------------------- ------ ------ ------ ------ ------ ------ ------
 
 =head1 SEE ALSO

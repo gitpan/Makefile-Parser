@@ -1,5 +1,8 @@
 Revision history for Perl extension Makefile::Parser.
 
+0.05 10/1/2005
+	- Add support for the syntax ^\
+
 0.04 9/30/2005
 	- Fix some issues in the POD doc
 

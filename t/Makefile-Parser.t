@@ -1,14 +1,14 @@
 #: Makefile-Parser.t
 #: Test script for Makefile/Parser.pm
-#: v0.04
+#: v0.05
 #: Copyright (c) 2005 Agent Zhang
-#: 2005-09-24 2005-09-30
+#: 2005-09-24 2005-10-01
 
 use strict;
 
 my $dir = -d 't' ? 't' : '.';
 
-use Test::More tests => 84;
+use Test::More tests => 98;
 use Makefile::Parser;
 
 $Makefile::Parser::Debug = 0;
@@ -22,6 +22,8 @@ is $mk->{_file}, "$dir/Makefile";
 can_ok $mk, 'error';
 ok !defined $pack->error;
 
+is $mk->var('FOO'), "\\";
+is $mk->var('FOO2'), "a b \\";
 is $mk->var('IDU_LIB'), "inc\\Idu.pm";
 is $mk->var('DISASM_LIB'), "inc\\Disasm.pm";
 is $mk->var('CIDU_DLL'), "C\\idu.dll";
@@ -46,13 +48,13 @@ is $mk->var('C_MIN_T_FILES'), join(' ', qw/t\\cpat_cover.ast.t t\\cpat_cover.t
 is $mk->var('EXE'), "hex2bin.exe";
 is $mk->var('COD'), "main.cod";
 
-is scalar($mk->vars), 21;
+is scalar($mk->vars), 23;
 my @tars = $mk->targets;
-is scalar(@tars), 80;
+is scalar(@tars), 82;
 isa_ok $tars[0], 'Makefile::Target';
 
 my @roots = $mk->roots;
-is join(' ', sort @roots), 'clean cmintest ctest doc mintest smoke test';
+is join(' ', sort @roots), 'clean cmintest ctest doc foo foo2 mintest smoke test';
 
 my $tar = $mk->target('all');
 ok $tar;
@@ -78,6 +80,24 @@ is $tar->name, $mk->var('IDU_LIB');
 is scalar(@depends), scalar(@deps);
 is join(' ', @depends), join(' ', @deps);
 is join("\n", $tar->commands), 'astt -o $@ -t ' . join(' ', @deps);
+is $tar->colon_type, ':';
+
+$tar = $mk->target('foo');
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'foo';
+@depends = $tar->depends;
+is scalar(@depends), 3;
+is join(' ', @depends), "a b \\";
+is $tar->colon_type, ':';
+
+$tar = $mk->target('foo2');
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'foo2';
+@depends = $tar->depends;
+is scalar(@depends), 5;
+is join(' ', @depends), "a b c d \\";
 is $tar->colon_type, ':';
 
 $tar = $mk->target('t_dir');

@@ -82,6 +82,16 @@ asm_tpl.ast : encoding.ast gen_asm_tpl.pl
 asm_tpl2.ast : asm_tpl2.ast.tt
 	tpage asm_tpl2.ast.tt > $@
 
+foo : a b ^\
+
+foo2 : a b \
+	c d ^\
+
+FOO = ^\
+
+FOO2 = a b \
+	^\
+
 # ---------------------------------------------------------
 # nmake doc
 # ---------------------------------------------------------

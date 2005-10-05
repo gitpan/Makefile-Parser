@@ -1,8 +1,8 @@
 #: Makefile/Parser.pm
 #: Implementation for Makefile::Parser
-#: v0.05
+#: v0.06
 #: Copyright (c) 2005 Agent Zhang
-#: 2005-09-24 2005-10-01
+#: 2005-09-24 2005-10-05
 
 package Makefile::Parser;
 
@@ -11,7 +11,7 @@ use strict;
 #use Data::Dumper;
 
 our $Debug = 0;
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 our $Error;
 
 # usage: $class->new;
@@ -177,6 +177,8 @@ sub error {
 }
 
 package Makefile::Target;
+
+use overload '""' => sub { shift->name };
 
 # usage: $class->new($name, $colon_type)
 sub new {
@@ -373,6 +375,9 @@ The type of the returned list is an array of Makefile::Target objects.
 
 =head1 The Makefile::Target Class
 
+This class overloads the "" operator so its instances can be automatically
+converted to strings using their names.
+
 =head2 METHODS
 
 =over
@@ -414,13 +419,18 @@ L<Devel::Cover> report on this module test suite.
     ---------------------------- ------ ------ ------ ------ ------ ------ ------
     File                           stmt   bran   cond    sub    pod   time  total
     ---------------------------- ------ ------ ------ ------ ------ ------ ------
-    blib/lib/Makefile/Parser.pm   100.0   95.5   87.1  100.0  100.0  100.0   97.2
-    Total                         100.0   95.5   87.1  100.0  100.0  100.0   97.2
+    blib/lib/Makefile/Parser.pm   100.0   95.5   87.1  100.0  100.0  100.0   97.3
+    Total                         100.0   95.5   87.1  100.0  100.0  100.0   97.3
     ---------------------------- ------ ------ ------ ------ ------ ------ ------
+
+=head1 BUGS
+
+Please feel free to report bugs or send your wish-list
+to L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Makefile-Parser>.
 
 =head1 SEE ALSO
 
-L<Makefile::GraphViz>, L<Make>.
+L<Makefile::GraphViz>.
 
 =head1 AUTHOR
 
@@ -428,7 +438,7 @@ Agent Zhang, E<lt>agent2002@126.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2005 Agent Zhang.
+Copyright (c) 2005 Agent Zhang.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

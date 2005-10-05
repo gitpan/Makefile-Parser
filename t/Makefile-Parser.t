@@ -1,14 +1,14 @@
 #: Makefile-Parser.t
 #: Test script for Makefile/Parser.pm
-#: v0.05
+#: v0.06
 #: Copyright (c) 2005 Agent Zhang
-#: 2005-09-24 2005-10-01
+#: 2005-09-24 2005-10-05
 
 use strict;
 
 my $dir = -d 't' ? 't' : '.';
 
-use Test::More tests => 98;
+use Test::More tests => 99;
 use Makefile::Parser;
 
 $Makefile::Parser::Debug = 0;
@@ -69,7 +69,7 @@ is join("\n", $tar->commands), '';
 is $tar->colon_type, '::';
 
 my $tar2 = $mk->target;
-is $tar, $tar2;
+is "$tar", "$tar2";
 
 $tar = $mk->target($mk->var('IDU_LIB'));
 ok $tar;
@@ -95,6 +95,7 @@ $tar = $mk->target('foo2');
 ok $tar;
 isa_ok $tar, 'Makefile::Target';
 is $tar->name, 'foo2';
+is "$tar", 'foo2';
 @depends = $tar->depends;
 is scalar(@depends), 5;
 is join(' ', @depends), "a b c d \\";

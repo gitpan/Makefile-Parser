@@ -1,4 +1,4 @@
-Makefile-Parser version 0.06
+Makefile-Parser version 0.07
 ============================
 
 This is a parser for Makefiles. At this very early stage, the parser
@@ -6,7 +6,7 @@ only support a very limited set of features, so it may not do what
 you expected it to do. Currently its main purpose is to provide basic
 support for another module named GraphViz::Make, which is aimed
 to render the buiding processes specified by a Makefile using
-the amazing GraphViz library. The L<Make> module is not satisfactory
+the amazing GraphViz library. The Make module is not satisfactory
 for this purpose, so I decided to build one of my own.
 
 INSTALLATION

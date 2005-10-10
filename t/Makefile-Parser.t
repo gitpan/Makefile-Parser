@@ -1,6 +1,6 @@
 #: Makefile-Parser.t
 #: Test script for Makefile/Parser.pm
-#: v0.06
+#: v0.07
 #: Copyright (c) 2005 Agent Zhang
 #: 2005-09-24 2005-10-05
 

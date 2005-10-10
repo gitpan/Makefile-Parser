@@ -1,8 +1,8 @@
 #: Makefile/Parser.pm
 #: Implementation for Makefile::Parser
-#: v0.06
+#: v0.07
 #: Copyright (c) 2005 Agent Zhang
-#: 2005-09-24 2005-10-05
+#: 2005-09-24 2005-10-06
 
 package Makefile::Parser;
 
@@ -11,7 +11,7 @@ use strict;
 #use Data::Dumper;
 
 our $Debug = 0;
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 our $Error;
 
 # usage: $class->new;
@@ -279,6 +279,58 @@ This stuff is highly experimental and is currently at B<ALPHA> stage, so
 production use is strongly discouraged. Anyway, I have the plan to 
 improve this stuff unfailingly.
 
+=head2 SYNTAX SUPPORTED
+
+The ultimate goal of this parser is supporting all the syntax of Win32
+NMAKE and GNU MAKE. But currently just a small common set of features are
+implemented:
+
+=over
+
+=item VARIABLES
+
+Variable assignments and variable substitutions are now supported:
+
+    MIN_T_FILES = $(PAT_COVER_FILES) t\optest.t t\my_perl.exe.t t\types.cod.t \
+        t\catln.t t\exe2hex.t t\hex2bin.t t\bin2hex.t t\bin2asm.t t\ndisasmi.t \
+        t\Idu.t t\pat_tree.t t\state_mac.t t\Idu-Util.t t\cidu.t \
+        t\opname.t t\error.t t\operand.t t\01disasm.t t\02disasm.t t\03disasm.t \
+        t\disasm_cover.t t\ndisasm.t
+    T_FILES = t\main.cod.t t\bin2hex.exe.t t\hex2bin.exe.t $(MIN_T_FILES)
+    DIRFILESEP = ^\
+
+Currently, environments and special variables like $@, $*, and $< are left 
+untouched.
+
+=item NORMAL RULES
+
+    $(CIDU_DLL) : C\idu.obj C\idu.def
+        link /dll /nologo /debug /out:$@ /def:C\idu.def C\idu.obj
+
+    $(CIDU_LIB) : $(CIDU_DLL)
+
+    C\idu.obj : C\idu.c C\idu.h
+        cd C
+        cl /nologo /c /I . idu.c
+        cd ..
+
+    smoke : all pat_cover t\pat_cover.t \
+            t/pat_cover.ast.ast
+        perl util\run-smoke.pl . smoke.html
+        perl txt2html.pl t\*.t t\*.ast
+
+    clean:
+        copy t\pat_cover.ast.ast.html ..\ /Y 
+        $(RM_F) encoding.html encoding.pod state_mac.xml encoding.ast \
+            pat_tree.ast state_mac.ast \
+            main.cod pat_cover.pod pat_cover.html types.cod \
+            hex2bin.exe hex2bin.obj
+
+=back
+
+For the list of features which will be added very soon, take a look at the L</TODO>
+section.
+
 =head1 The Makefile::Parser Class
 
 This class provide the interface to the Makefile parser.
@@ -422,6 +474,45 @@ L<Devel::Cover> report on this module test suite.
     blib/lib/Makefile/Parser.pm   100.0   95.5   87.1  100.0  100.0  100.0   97.3
     Total                         100.0   95.5   87.1  100.0  100.0  100.0   97.3
     ---------------------------- ------ ------ ------ ------ ------ ------ ------
+
+=head1 REPOSITORY
+
+For the very latest version of this module, check out the source from
+L<https://svn.openfoundry.org/makefileparser> (Subversion). There is
+anonymous access to all.
+
+=head1 TODO
+
+The following syntax will be implemented at the first priority:
+
+=over
+
+=item Nmake-Style Referencing Rules:
+
+    obj.asm :
+        masm /t $<
+
+    exe.obj :
+        link /nologo $<
+
+=item Make-Style Referencing Rules:
+
+    %.obj : %.asm
+        masm /t $<;
+
+    %.exe : %.obj
+        link /BATCH /NOLOGO $<;
+
+=item Import environment variables
+
+A quick example on Win32:
+
+    C:\> set RM_F=perl -MExtUtils::Command -e rm_f
+    C:\> nmake clean
+
+=item Substitute special variables, $@, $*, and $< with their values
+
+=back
 
 =head1 BUGS
 

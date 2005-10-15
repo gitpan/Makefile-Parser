@@ -1,4 +1,4 @@
-Makefile-Parser version 0.08
+Makefile-Parser version 0.09
 ============================
 
 This is a parser for Makefiles. At this very early stage, the parser

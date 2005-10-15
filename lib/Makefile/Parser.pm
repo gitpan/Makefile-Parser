@@ -1,6 +1,6 @@
 #: Makefile/Parser.pm
 #: Implementation for Makefile::Parser
-#: v0.08
+#: v0.09
 #: Copyright (c) 2005 Agent Zhang
 #: 2005-09-24 2005-10-15
 
@@ -12,7 +12,7 @@ use strict;
 
 #our $Debug = 0;
 our $Strict = 0;
-our $VERSION = '0.08';
+our $VERSION = '0.09';
 our $Error;
 
 # usage: $class->new;
@@ -88,7 +88,7 @@ sub parse {
             }
         }
         elsif (($state eq 'S_IDLE' or $state eq 'S_CMD') and /^(\.\w+) (\.\w+) \s* (::?)\s*$/xo) {
-            $_ = "%$1 $3 %$2\n";
+            $_ = "%$2 $3 %$1\n";
             #warn $_;
             redo;
         }
@@ -307,7 +307,7 @@ Makefile::Parser - A Simple Parser for Makefiles
 
   $parser = Makefile::Parser->new;
 
-  # Equivalent to ->new('Makefile');
+  # Equivalent to ->parse('Makefile');
   $parser->parse or
       die Makefile::Parser->error;
 
@@ -347,12 +347,13 @@ Makefile::Parser - A Simple Parser for Makefiles
 =head1 DESCRIPTION
 
 This is a parser for Makefiles. At this very early stage, the parser
-only supports a very limited set of features, so it may not do what
-you expected. Currently its main purpose is to provide basic
-support for another module named L<Makefile::GraphViz>, which is aimed
-to render the building processes specified by a Makefile using
-the amazing GraphViz library. The L<Make> module is not satisfactory
-for this purpose, so I decided to build one of my own.
+only supports a limited set of features, so it may not recognize some
+advanced features provided by some make tools like GNU make. Its initial
+purpose is to provide basic support for another module named 
+L<Makefile::GraphViz>, which is aimed to render the building processes
+specified by a Makefile using the amazing GraphViz library. The L<Make> 
+module is not satisfactory for this purpose, so I decided to build one
+of my own.
 
 B<IMPORTANT!>
 This stuff is highly experimental and is currently at B<ALPHA> stage, so
@@ -361,8 +362,8 @@ improve this stuff unfailingly.
 
 =head2 SYNTAX SUPPORTED
 
-The ultimate goal of this parser is supporting all the syntax of Win32
-NMAKE and GNU MAKE. But currently just a small common set of features are
+The ultimate goal of this parser is to support all the syntax of Win32
+NMAKE and GNU MAKE. But currently just a subset of features are
 implemented:
 
 =over
@@ -436,10 +437,10 @@ Currently only double-suffix rules are supported:
 
     .SUFFIXES: .obj .asm .exe
 
-    .obj.asm :
+    .asm.obj :
         masm /t $<
 
-    .exe.obj :
+    .obj.exe :
         link /nologo $<
 
 At this moment, .SUFFIXES is a no-op. So any suffix-like things will be treated as
@@ -459,7 +460,7 @@ section.
 
 =head1 The Makefile::Parser Class
 
-This class provide the interface to the Makefile parser.
+This class provides the main interface to the Makefile parser.
 
 =head2 METHODS
 

@@ -1,5 +1,10 @@
 Revision history for Perl extension Makefile::Parser.
 
+0.09 10/15/2005
+	- Fix a stupid bug in Parser.pm. The order of the two suffixes is
+	  inverted accidentally.
+	- Update the POD document, implementation, and tests accordingly.
+
 0.08 10/10/2005
         - Make Makefile::Parser->parse to raise syntax errors under strict mode
         - Add full support for implicit pattern rules:
@@ -9,7 +14,7 @@ Revision history for Perl extension Makefile::Parser.
         - Add more tests for pattern rules, expand $< and $* as expected, and clean up
           the stderr output.
         - Add support for implicit suffix rules:
-            .o.c:
+            .c.o:
 		$(CC) -c $<
 	  Currently .SUFFIXES is a no-op. So suffix rules will be applied to any 
 	  suffix-like targets.

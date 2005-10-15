@@ -1,34 +1,50 @@
 Revision history for Perl extension Makefile::Parser.
 
+0.08 10/10/2005
+        - Make Makefile::Parser->parse to raise syntax errors under strict mode
+        - Add full support for implicit pattern rules:
+            %.o : %.c
+                $(CC) -c $<
+          The order of the implicit rules is not significant. Whee!
+        - Add more tests for pattern rules, expand $< and $* as expected, and clean up
+          the stderr output.
+        - Add support for implicit suffix rules:
+            .o.c:
+		$(CC) -c $<
+	  Currently .SUFFIXES is a no-op. So suffix rules will be applied to any 
+	  suffix-like targets.
+	  Internally the parser converts the suffix rules to pattern
+	  rules, thus saving me a lot of coding.
+
 0.07 10/5/2005
-	- Host this module to a SVN repository at OSSF
-	- Add sections "Syntax Supported" and "TODO" to POD doc
+        - Host this module to a SVN repository at OSSF
+        - Add sections "Syntax Supported" and "TODO" to POD doc
 
 0.06 10/5/2005
-	- Add string-ify overloading to the Makefile::Target class
-	- Use tar+gzip to compress the distribution.
+        - Add string-ify overloading to the Makefile::Target class
+        - Use tar+gzip to compress the distribution.
 
 0.05 10/1/2005
-	- Add support for the syntax ^\
+        - Add support for the syntax ^\
 
 0.04 9/30/2005
-	- Fix some issues in the POD doc
+        - Fix some issues in the POD doc
 
 0.03 9/30/2005
         - Force the user to call the ->parse method after he/she constructs every Makefile::Parser object.
           That is to say, the constructor of the Makefile::Parser class won't call ->parse internally
           from now on.
-	- Add error checking code and corresponding tests for Parser objects which has never parsed anything.
-	- Add support of default target to the ->target method of the Makefile::Parser class.
+        - Add error checking code and corresponding tests for Parser objects which has never parsed anything.
+        - Add support of default target to the ->target method of the Makefile::Parser class.
         - Add method ->roots to the Makefile::Parser class which returns the "root targets" for the
-	  Makefile.
-	- Use Devel::Cover to check the code coverage.
-	- Use Test::Pod to check the validity of the POD docs
-	- Use Test::Pod::Coverage to check the integrity of POD docs
+          Makefile.
+        - Use Devel::Cover to check the code coverage.
+        - Use Test::Pod to check the validity of the POD docs
+        - Use Test::Pod::Coverage to check the integrity of POD docs
 
 0.02 9/25/2005
         - Fix a bug in the SYNOPSIS of the POD doc.
-	- Add many other stuff to the POD doc too.
+        - Add many other stuff to the POD doc too.
 
 0.01  Sat Sep 24 10:22:01 2005
         - original version; created by h2xs 1.23 with options

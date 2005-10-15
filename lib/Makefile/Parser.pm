@@ -1,8 +1,8 @@
 #: Makefile/Parser.pm
 #: Implementation for Makefile::Parser
-#: v0.07
+#: v0.08
 #: Copyright (c) 2005 Agent Zhang
-#: 2005-09-24 2005-10-06
+#: 2005-09-24 2005-10-15
 
 package Makefile::Parser;
 
@@ -10,8 +10,9 @@ use strict;
 #use warnings;
 #use Data::Dumper;
 
-our $Debug = 0;
-our $VERSION = '0.07';
+#our $Debug = 0;
+our $Strict = 0;
+our $VERSION = '0.08';
 our $Error;
 
 # usage: $class->new;
@@ -23,6 +24,7 @@ sub new {
         _tars    => undef,    # all the targets
         _default => undef,    # default target
         _depends => {},       # all the dependencies
+        _imps    => [],       # targets in implicit rules
     }, $class;
     return $self;
 }
@@ -31,7 +33,14 @@ sub new {
 sub parse {
     my ($self, $file) = @_;
     $file ||= 'Makefile';
+
     $self->{_file} = $file;
+    $self->{_vars} = {};
+    undef $self->{_tars};
+    undef $self->{_default};
+    $self->{_depends} = {};
+    $self->{_imps} = [];
+
     my $rvars = $self->{_vars};
     my $in;
     unless (open $in, $file) {
@@ -47,6 +56,7 @@ sub parse {
     my $first_tar = 1;
     while (<$in>) {
         next if /^\s*#/;
+        next if /^\s*$/;
         #$tar_name = '' unless defined $var;
         #warn "(tar: $tar_name) Switching to tate $state with $_";
         #warn $state if $state ne 'S_IDLE';
@@ -77,14 +87,26 @@ sub parse {
                 #warn "$var <=> $value\n";
             }
         }
+        elsif (($state eq 'S_IDLE' or $state eq 'S_CMD') and /^(\.\w+) (\.\w+) \s* (::?)\s*$/xo) {
+            $_ = "%$1 $3 %$2\n";
+            #warn $_;
+            redo;
+        }
         elsif (($state eq 'S_IDLE' or $state eq 'S_CMD') and /^(\S[^:]*) (::?) \s* (.*)$/xo) {
             $tar_name = $1;
             $colon_type = $2;
             $depends = $3;
             $tar_name =~ s/^\s+|\s+$//;
+
+            # Ignore .SUFFIXES currently:
+            next if $tar_name eq '.SUFFIXES';
+
             #warn "Adding target $tar_name...\n";
             $tar = Makefile::Target->new($tar_name, $colon_type);
             $tars{$tar_name} = $tar;
+            if ($tar_name =~ m/%/) {
+                push @{$self->{_imps}}, $tar_name;
+            }
             if ($first_tar) {
                 $self->{_default} = $tar;
                 $first_tar = 0;
@@ -124,13 +146,64 @@ sub parse {
                 $state = 'S_CMD';
             }
         }
-        #else {
-        #}
+        elsif ($Strict) {
+            $Error = "syntax error: line $.: $_\n";
+            return undef;
+        }
     }
     $self->{_tars} = \%tars;
+    $self->post_parse;
     #warn Data::Dumper->Dump([\%tars], ['TARGETS']);
     close $in;
     return $self;
+}
+
+sub post_parse {
+    my $self = shift;
+    my $rdepends = $self->{_depends};
+    my $rimps = $self->{_imps};
+    for (keys %$rdepends) {
+        next if /%/;
+        #warn "Trying to match implicit rules one by one against $_...\n";
+        $self->solve_imp($_);
+    }
+    for (@$rimps) {
+        delete $self->{_tars}->{$_};
+    }
+}
+
+sub solve_imp {
+    my ($self, $depend) = @_;
+    my $rimps = $self->{_imps};
+    for my $imp (@$rimps) {
+        my $obj = $self->target($imp);
+        die "Rules for $imp not found" unless $obj and ref $obj;
+        my $regex = quotemeta($imp);
+        $regex =~ s/\\%/(.+)/;  # `%' can match any nonempty substring
+        #warn "Processing regex $regex...\n";
+        if ($depend =~ m/^$regex$/) {
+            #warn "Succeeded to match $imp against $depend!\n";
+            my $matched_part = $1;
+            my $tar = Makefile::Target->new($depend, $obj->colon_type);
+            my $dep;
+            my @deps = map {
+                s/%/$matched_part/;
+                $self->{_depends}->{$_} = 1;
+                #warn "Recursively solving dependent gole $_...\n";
+                $self->solve_imp($_);
+                $dep = $_;
+                $_
+            } $obj->depends;
+            $tar->add_depend(@deps);
+            my @cmds = map {
+                s/\$</$dep/g;
+                s/\$\*/$matched_part/g;
+                $_
+            } $obj->commands;
+            $tar->add_command(@cmds);
+            $self->{_tars}->{$depend} = $tar;
+        }
+    }
 }
 
 sub var {
@@ -166,6 +239,7 @@ sub roots {
     my @roots = ();
     my ($key, $val);
     while (($key, $val) = each %tars) {
+        next if $key =~ m/%/;
         next if $depends{$key};
         push @roots, $key;
     }
@@ -178,7 +252,11 @@ sub error {
 
 package Makefile::Target;
 
-use overload '""' => sub { shift->name };
+use overload
+    '""'  => sub { shift->name },
+    'cmp' => sub { my ($a,$b) = @_; "$a" cmp "$b" },
+    'eq'  => sub { my ($a,$b) = @_; "$a" eq  "$b" },
+    'lt'  => sub { my ($a,$b) = @_; "$a" lt  "$b" };
 
 # usage: $class->new($name, $colon_type)
 sub new {
@@ -227,8 +305,10 @@ Makefile::Parser - A Simple Parser for Makefiles
 
   use Makefile::Parser;
 
+  $parser = Makefile::Parser->new;
+
   # Equivalent to ->new('Makefile');
-  $parser = Makefile::Parser->new or
+  $parser->parse or
       die Makefile::Parser->error;
 
   # Get last value assigned to the specified variable 'CC':
@@ -287,9 +367,7 @@ implemented:
 
 =over
 
-=item VARIABLES
-
-Variable assignments and variable substitutions are now supported:
+=item Variable Definition
 
     MIN_T_FILES = $(PAT_COVER_FILES) t\optest.t t\my_perl.exe.t t\types.cod.t \
         t\catln.t t\exe2hex.t t\hex2bin.t t\bin2hex.t t\bin2asm.t t\ndisasmi.t \
@@ -299,10 +377,22 @@ Variable assignments and variable substitutions are now supported:
     T_FILES = t\main.cod.t t\bin2hex.exe.t t\hex2bin.exe.t $(MIN_T_FILES)
     DIRFILESEP = ^\
 
-Currently, environments and special variables like $@, $*, and $< are left 
+Variable redefinition can also be handled:
+
+    CC = cl
+
+    %.obj : %.c
+        $(CC) /nologo /c $<
+    
+    CC = gcc
+
+    %.o : %.c
+        $(CC) -c $<
+
+Currently, environments and the special variable $@ is left 
 untouched.
 
-=item NORMAL RULES
+=item Explicit Rules
 
     $(CIDU_DLL) : C\idu.obj C\idu.def
         link /dll /nologo /debug /out:$@ /def:C\idu.def C\idu.obj
@@ -325,6 +415,42 @@ untouched.
             pat_tree.ast state_mac.ast \
             main.cod pat_cover.pod pat_cover.html types.cod \
             hex2bin.exe hex2bin.obj
+
+=item Implicit Rules
+
+=over
+
+=item Pattern Rules
+
+    %.obj : %.asm
+        masm /t $<;
+
+    %.exe : %.obj
+        link /BATCH /NOLOGO $<;
+
+The special varaibles $< and $* will be expanded according to the context.
+
+=item Old-Fashioned Suffix Rules
+
+Currently only double-suffix rules are supported:
+
+    .SUFFIXES: .obj .asm .exe
+
+    .obj.asm :
+        masm /t $<
+
+    .exe.obj :
+        link /nologo $<
+
+At this moment, .SUFFIXES is a no-op. So any suffix-like things will be treated as
+suffixes, excluding the following example:
+
+    .c.o: foo.h
+            $(CC) -c $(CFLAGS) $(CPPFLAGS) -o $@ $<
+
+In suffix rules, B<no> prerequisites are allowed according to most make tools.
+
+=back
 
 =back
 
@@ -425,6 +551,40 @@ The type of the returned list is an array of Makefile::Target objects.
 
 =back
 
+=head2 PACKAGE VARIABLES
+
+=over
+
+=item $Makefile::Parser::Strict
+
+When this variable is set to true, the parser will sense syntax errors and
+semantic errors in the Makefile. Default off.
+
+=item $Makefile::Parser::Debug
+
+When this variable is set to true, the parser will enter Debug Mode. This
+variable is not supposed to be used directly by the user.
+
+=back
+
+=head1 INTERNAL METHODS
+
+=over
+
+=item post_parse
+
+Iterate the Makefile AST to apply implicit rules in the following form:
+
+    %.o : %.c
+        $(CC) -c $<
+
+=item solve_imp($depend)
+
+Solve implicit rules as many as possible using one target name that appears
+in other target's dependency list.
+
+=back
+
 =head1 The Makefile::Target Class
 
 This class overloads the "" operator so its instances can be automatically
@@ -471,8 +631,8 @@ L<Devel::Cover> report on this module test suite.
     ---------------------------- ------ ------ ------ ------ ------ ------ ------
     File                           stmt   bran   cond    sub    pod   time  total
     ---------------------------- ------ ------ ------ ------ ------ ------ ------
-    blib/lib/Makefile/Parser.pm   100.0   95.5   87.1  100.0  100.0  100.0   97.3
-    Total                         100.0   95.5   87.1  100.0  100.0  100.0   97.3
+    blib/lib/Makefile/Parser.pm    96.6   88.7   80.0   91.3  100.0  100.0   92.6
+    Total                          96.6   88.7   80.0   91.3  100.0  100.0   92.6
     ---------------------------- ------ ------ ------ ------ ------ ------ ------
 
 =head1 REPOSITORY
@@ -487,22 +647,6 @@ The following syntax will be implemented at the first priority:
 
 =over
 
-=item Nmake-Style Referencing Rules:
-
-    obj.asm :
-        masm /t $<
-
-    exe.obj :
-        link /nologo $<
-
-=item Make-Style Referencing Rules:
-
-    %.obj : %.asm
-        masm /t $<;
-
-    %.exe : %.obj
-        link /BATCH /NOLOGO $<;
-
 =item Import environment variables
 
 A quick example on Win32:
@@ -510,7 +654,27 @@ A quick example on Win32:
     C:\> set RM_F=perl -MExtUtils::Command -e rm_f
     C:\> nmake clean
 
-=item Substitute special variables, $@, $*, and $< with their values
+=item Substitute special variable $@ with its value in the context
+
+=item Comments that span multiple lines via trailing backslash
+
+=item Lines that don't contain just comments
+
+=item Literal "#" escaped by a leading backslash
+
+=item The include directive
+
+=item Look for 'GNUmakefile' and 'makefile' automatically
+
+=item MAKEFILES Variable
+
+=item MAKEFILE_LIST Variable
+
+=item .VARIABLES Variable
+
+=item Provide a make tool named ``plmake'' that uses Makefile::Parser
+
+This stuff can be served as a good integrated test.
 
 =back
 

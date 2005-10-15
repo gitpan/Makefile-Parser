@@ -1,17 +1,19 @@
 #: Makefile-Parser.t
 #: Test script for Makefile/Parser.pm
-#: v0.07
+#: v0.08
 #: Copyright (c) 2005 Agent Zhang
-#: 2005-09-24 2005-10-05
+#: 2005-09-24 2005-10-15
 
 use strict;
+use warnings;
 
 my $dir = -d 't' ? 't' : '.';
 
-use Test::More tests => 99;
+use Test::More tests => 143;
 use Makefile::Parser;
 
-$Makefile::Parser::Debug = 0;
+#$Makefile::Parser::Debug = 0;
+$Makefile::Parser::Strict = 1;
 my $pack = 'Makefile::Parser';
 
 my $mk = $pack->new;
@@ -180,3 +182,109 @@ is $mk->{_file}, "Makefile";
 
 my $mk2 = $mk->new;
 isa_ok $mk, 'Makefile::Parser';
+
+#####
+# Makefile2
+####
+
+#warn "!!! Makefile2 !!!\n";
+my $ps = Makefile::Parser->new;
+$ps->parse('t/Makefile2');
+
+@roots = $ps->roots;
+is join(' ', sort @roots), 'all clean';
+
+$tar = $ps->target('sum2.exe');
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'sum2.exe';
+@depends = $tar->depends;
+is join(' ', @depends), 'sum2.obj';
+
+$tar = $ps->target('sum2.obj');
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'sum2.obj';
+@depends = $tar->depends;
+is join(' ', @depends), 'sum2.asm';
+
+$tar = $ps->target('ast++.sum.o');
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'ast++.sum.o';
+my @cmds = $tar->commands;
+is join("\n", @cmds), 'cl /L ast++.sum.lib ast++.sum.c';
+@depends = $tar->depends;
+is join(' ', @depends), 'ast++.sum.c';
+
+@tars = $ps->targets;
+is join(' ', sort @tars), 'all ast++.sum.o clean sum1.exe sum1.obj sum2.exe sum2.obj';
+
+####
+# Makefile3
+####
+
+#warn "!!! Makefile3 !!!\n";
+ok $ps->parse('t/Makefile3');
+
+@roots = $ps->roots;
+is join(' ', sort @roots), 'all clean';
+
+$tar = $ps->target('sum2.exe');
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'sum2.exe';
+@depends = $tar->depends;
+is join(' ', @depends), 'sum2.obj';
+
+$tar = $ps->target('sum2.obj');
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'sum2.obj';
+@depends = $tar->depends;
+is join(' ', @depends), 'sum2.asm';
+
+$tar = $ps->target('ast++.sum.o');
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'ast++.sum.o';
+@depends = $tar->depends;
+is join(' ', @depends), 'ast++.sum.c';
+
+@tars = $ps->targets;
+is join(' ', sort @tars), 'all ast++.sum.o clean sum1.exe sum1.obj sum2.exe sum2.obj';
+
+#####
+# Makefile4
+####
+
+#warn "!!! Mafefile4 !!!\n";
+
+$ps->parse('t/Makefile4');
+
+@roots = $ps->roots;
+is join(' ', sort @roots), 'all clean';
+
+$tar = $ps->target('sum2.exe');
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'sum2.exe';
+@depends = $tar->depends;
+is join(' ', @depends), 'sum2.obj';
+
+$tar = $ps->target('sum2.obj');
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'sum2.obj';
+@depends = $tar->depends;
+is join(' ', @depends), 'sum2.asm';
+
+$tar = $ps->target('ast++.sum.o');
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'ast++.sum.o';
+@depends = $tar->depends;
+is join(' ', @depends), 'ast++.sum.c';
+
+@tars = $ps->targets;
+is join(' ', sort @tars), 'all ast++.sum.o clean sum1.exe sum1.obj sum2.exe sum2.obj';

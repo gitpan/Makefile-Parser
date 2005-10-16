@@ -1,8 +1,8 @@
 #: Makefile/Parser.pm
 #: Implementation for Makefile::Parser
-#: v0.09
+#: v0.10
 #: Copyright (c) 2005 Agent Zhang
-#: 2005-09-24 2005-10-15
+#: 2005-09-24 2005-10-16
 
 package Makefile::Parser;
 
@@ -12,7 +12,7 @@ use strict;
 
 #our $Debug = 0;
 our $Strict = 0;
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 our $Error;
 
 # usage: $class->new;

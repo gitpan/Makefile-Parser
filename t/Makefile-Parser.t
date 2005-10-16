@@ -1,15 +1,15 @@
 #: Makefile-Parser.t
 #: Test script for Makefile/Parser.pm
-#: v0.09
+#: v0.10
 #: Copyright (c) 2005 Agent Zhang
-#: 2005-09-24 2005-10-15
+#: 2005-09-24 2005-10-16
 
 use strict;
 use warnings;
 
 my $dir = -d 't' ? 't' : '.';
 
-use Test::More tests => 143;
+use Test::More tests => 145;
 use Makefile::Parser;
 
 #$Makefile::Parser::Debug = 0;
@@ -147,25 +147,25 @@ ok !$mk->parse('Makefile.bar.bar');
 ok defined $mk, 'object defined';
 like(Makefile::Parser->error, qr/Cannot open Makefile.bar.bar for reading:.*/);
 
+chdir('./t');
 $mk = $pack->new;
-$tar = $mk->target('install');
+$tar = $mk->target('test');
 ok $tar;
 isa_ok $tar, 'Makefile::Target';
-is $tar->name, 'install';
+is $tar->name, 'test';
 is $mk->{_file}, "Makefile";
 
 $mk = $pack->new;
 $tar = $mk->target;
 ok $tar;
 isa_ok $tar, 'Makefile::Target';
-is $tar->name, 'makemakerdflt';
+is $tar->name, 'all';
 is $mk->{_file}, "Makefile";
 
 $mk = $pack->new;
-$tar = $mk->target;
-ok $tar;
-isa_ok $tar, 'Makefile::Target';
-is $tar->name, 'makemakerdflt';
+$var = $mk->var('IDU_LIB');
+ok $var;
+is $var, 'inc\\Idu.pm';
 is $mk->{_file}, "Makefile";
 
 $mk = $pack->new;
@@ -180,8 +180,18 @@ ok @tars > 5;
 isa_ok $tars[0], 'Makefile::Target';
 is $mk->{_file}, "Makefile";
 
+$mk = $pack->new;
+@tars = $mk->roots;
+ok @tars > 5;
+is join(' ', sort @tars),
+    'clean cmintest ctest doc foo foo2 mintest smoke test';
+#is $tars[0], 'all';
+is $mk->{_file}, "Makefile";
+
 my $mk2 = $mk->new;
 isa_ok $mk, 'Makefile::Parser';
+
+chdir('..');
 
 #####
 # Makefile2

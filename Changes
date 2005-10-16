@@ -1,5 +1,10 @@
 Revision history for Perl extension Makefile::Parser.
 
+0.10 10/16/2005
+	- Update the version number to 0.10
+	- Fix the platform-specific tests, stripped CR from test files,
+	  and test both against Cygwin and Win32. Slaven++
+
 0.09 10/15/2005
 	- Fix a stupid bug in Parser.pm. The order of the two suffixes is
 	  inverted accidentally.

@@ -1,6 +1,6 @@
 #: Makefile-Parser.t
 #: Test script for Makefile/Parser.pm
-#: v0.10
+#: v0.11
 #: Copyright (c) 2005 Agent Zhang
 #: 2005-09-24 2005-10-16
 
@@ -9,7 +9,7 @@ use warnings;
 
 my $dir = -d 't' ? 't' : '.';
 
-use Test::More tests => 145;
+use Test::More tests => 157;
 use Makefile::Parser;
 
 #$Makefile::Parser::Debug = 0;
@@ -71,7 +71,7 @@ is join("\n", $tar->commands), '';
 is $tar->colon_type, '::';
 
 my $tar2 = $mk->target;
-is "$tar", "$tar2";
+is $tar, $tar2;
 
 $tar = $mk->target($mk->var('IDU_LIB'));
 ok $tar;
@@ -81,7 +81,7 @@ is $tar->name, $mk->var('IDU_LIB');
 @depends = $tar->depends;
 is scalar(@depends), scalar(@deps);
 is join(' ', @depends), join(' ', @deps);
-is join("\n", $tar->commands), 'astt -o $@ -t ' . join(' ', @deps);
+is join("\n", $tar->commands), 'astt -o inc\Idu.pm -t ' . join(' ', @deps);
 is $tar->colon_type, ':';
 
 $tar = $mk->target('foo');
@@ -97,7 +97,7 @@ $tar = $mk->target('foo2');
 ok $tar;
 isa_ok $tar, 'Makefile::Target';
 is $tar->name, 'foo2';
-is "$tar", 'foo2';
+is $tar, 'foo2';
 @depends = $tar->depends;
 is scalar(@depends), 5;
 is join(' ', @depends), "a b c d \\";
@@ -135,7 +135,7 @@ is scalar(@depends), scalar(@deps);
 is join(' ', @depends), join(' ', @deps);
 is join("\n", $tar->commands)."\n", <<'_EOC_';
 echo $ast = { 'ast_file', 't/pat_cover.ast.ast' }; > t\tmp
-astt -o $@ -t coptest.tt t\tmp t\pat_cover.ast.ast
+astt -o t\cpat_cover.ast.t -t coptest.tt t\tmp t\pat_cover.ast.ast
 del t\tmp
 _EOC_
 is $tar->colon_type, ':';
@@ -223,7 +223,7 @@ ok $tar;
 isa_ok $tar, 'Makefile::Target';
 is $tar->name, 'ast++.sum.o';
 my @cmds = $tar->commands;
-is join("\n", @cmds), 'cl /L ast++.sum.lib ast++.sum.c';
+is join("\n", @cmds), 'cl /L ast++.sum.lib ast++.sum.c > ast++.sum.o';
 @depends = $tar->depends;
 is join(' ', @depends), 'ast++.sum.c';
 
@@ -298,3 +298,25 @@ is join(' ', @depends), 'ast++.sum.c';
 
 @tars = $ps->targets;
 is join(' ', sort @tars), 'all ast++.sum.o clean sum1.exe sum1.obj sum2.exe sum2.obj';
+
+#warn "!!! Makefile5 !!!\n";
+ok $ps->parse('t/Makefile5');
+
+@roots = $ps->roots;
+is join(' ', sort @roots), 'abc';
+
+$tar = $ps->target('abc');
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'abc';
+@depends = $tar->depends;
+is join(' ', @depends), 'foo.obj';
+is join("\n", $tar->commands), 'link 5 5 $(MAKE) $(CC)  > abc';
+
+$tar = $ps->target('foo.obj');
+ok $tar;
+isa_ok $tar, 'Makefile::Target';
+is $tar->name, 'foo.obj';
+@depends = $tar->depends;
+is join(' ', @depends), '';
+is join("\n", $tar->commands), 'echo foo.obj';

@@ -1,8 +1,8 @@
 #: Makefile/Parser.pm
 #: Implementation for Makefile::Parser
-#: v0.10
+#: v0.11
 #: Copyright (c) 2005 Agent Zhang
-#: 2005-09-24 2005-10-16
+#: 2005-09-24 2005-10-20
 
 package Makefile::Parser;
 
@@ -12,7 +12,7 @@ use strict;
 
 #our $Debug = 0;
 our $Strict = 0;
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 our $Error;
 
 # usage: $class->new;
@@ -61,10 +61,11 @@ sub parse {
         #warn "(tar: $tar_name) Switching to tate $state with $_";
         #warn $state if $state ne 'S_IDLE';
         chomp;
-        while (my ($key, $val) = each %$rvars) {
-            s/\$\($key\)/$val/g;
-        }
-        if (($state eq 'S_IDLE' or $state eq 'S_CMD') and /^([A-Za-z_]\w+) \s* = \s* (.*)$/xo) {
+
+        # expand the value of use-defined variables:
+        s/\$[\{\(](\w+)[\}\)]/exists $rvars->{$1} ? $rvars->{$1} : $&/ge;
+
+        if (($state eq 'S_IDLE' or $state eq 'S_CMD') and /^(\w+) \s* :?= \s* (.*)$/xo) {
             $var = $1;
             $value = $2 || '';
             if ($value =~ s/\s+\\$//o) {
@@ -239,7 +240,7 @@ sub roots {
     my @roots = ();
     my ($key, $val);
     while (($key, $val) = each %tars) {
-        next if $key =~ m/%/;
+        #next if $key =~ m/%/;
         next if $depends{$key};
         push @roots, $key;
     }
@@ -291,7 +292,13 @@ sub commands {
 }
 
 sub add_command {
-    push @{shift->{_commands}}, @_;
+    my $self = shift;
+    my @cmds = @_;
+    my $name = $self->name;
+    if ($name !~ m/%/) {
+        map { s/\$\@/$self->{_name}/g } @cmds;
+    }
+    push @{$self->{_commands}}, @cmds;
 }
 
 1;
@@ -348,9 +355,9 @@ Makefile::Parser - A Simple Parser for Makefiles
 
 This is a parser for Makefiles. At this very early stage, the parser
 only supports a limited set of features, so it may not recognize some
-advanced features provided by some make tools like GNU make. Its initial
+advanced features provided by certain make tools like GNU make. Its initial
 purpose is to provide basic support for another module named 
-L<Makefile::GraphViz>, which is aimed to render the building processes
+L<Makefile::GraphViz>, which is aimed to render the building process
 specified by a Makefile using the amazing GraphViz library. The L<Make> 
 module is not satisfactory for this purpose, so I decided to build one
 of my own.
@@ -378,7 +385,14 @@ implemented:
     T_FILES = t\main.cod.t t\bin2hex.exe.t t\hex2bin.exe.t $(MIN_T_FILES)
     DIRFILESEP = ^\
 
-Variable redefinition can also be handled:
+"Simply expanded" variables' definition sytax in GUN make is also supported:
+
+    FOO := blah blah blah
+
+which is considered invalid in Win32 NMake. "Recursively expanded" variables are
+currently treated as "simply expanded" variables.
+
+Variable redefinition can be handled as well:
 
     CC = cl
 
@@ -390,8 +404,22 @@ Variable redefinition can also be handled:
     %.o : %.c
         $(CC) -c $<
 
-Currently, environments and the special variable $@ is left 
-untouched.
+Variable expansion sytax
+
+    ${abc}
+
+is accepted, whereas Win32 NMake will complain about it.
+
+Currently, environment variables defined in the command-line are not imported.
+
+I have no idea what default value should be assigned to built-in variables like
+$(MAKE) and $(CC). Currently they will be left untouched if they're not set
+explicitly in the Makefile.
+
+Due to the current implementation, expansion of unrecognized built-in varaibles
+and variables not previously defined by Makefile will NOT be performed. This
+behavior is different from any practial make tools, but is reasonable at
+this early stage of this parser.
 
 =item Explicit Rules
 
@@ -416,6 +444,8 @@ untouched.
             pat_tree.ast state_mac.ast \
             main.cod pat_cover.pod pat_cover.html types.cod \
             hex2bin.exe hex2bin.obj
+
+Specital variable $@ will be expanded using its value in the context.
 
 =item Implicit Rules
 
@@ -452,6 +482,8 @@ suffixes, excluding the following example:
 In suffix rules, B<no> prerequisites are allowed according to most make tools.
 
 =back
+
+Specital variable $@ will be expanded using its value in the context.
 
 =back
 
@@ -627,13 +659,13 @@ None by default.
 =head1 CODE COVERAGE
 
 I use L<Devel::Cover> to test the code coverage of my tests, below is the 
-L<Devel::Cover> report on this module test suite.
+L<Devel::Cover> report on this module's test suite for version 0.11:
 
     ---------------------------- ------ ------ ------ ------ ------ ------ ------
     File                           stmt   bran   cond    sub    pod   time  total
     ---------------------------- ------ ------ ------ ------ ------ ------ ------
-    blib/lib/Makefile/Parser.pm    96.6   88.7   80.0   91.3  100.0  100.0   92.6
-    Total                          96.6   88.7   80.0   91.3  100.0  100.0   92.6
+    blib/lib/Makefile/Parser.pm    96.7   91.9   80.0   91.3  100.0  100.0   93.4
+    Total                          96.7   91.9   80.0   91.3  100.0  100.0   93.4
     ---------------------------- ------ ------ ------ ------ ------ ------ ------
 
 =head1 REPOSITORY
@@ -648,14 +680,18 @@ The following syntax will be implemented at the first priority:
 
 =over
 
+=item Serious support for "Recursively expanded" variables in GUN make
+
+=item Provide a make tool named ``plmake'' that uses Makefile::Parser
+
+This stuff can be served as a good integrated test.
+
 =item Import environment variables
 
 A quick example on Win32:
 
     C:\> set RM_F=perl -MExtUtils::Command -e rm_f
     C:\> nmake clean
-
-=item Substitute special variable $@ with its value in the context
 
 =item Comments that span multiple lines via trailing backslash
 
@@ -672,10 +708,6 @@ A quick example on Win32:
 =item MAKEFILE_LIST Variable
 
 =item .VARIABLES Variable
-
-=item Provide a make tool named ``plmake'' that uses Makefile::Parser
-
-This stuff can be served as a good integrated test.
 
 =back
 

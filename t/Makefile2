@@ -10,7 +10,7 @@ all : $(EXE_FILES) ast++.sum.o
 	masm /t $<;
 
 ast++.%.o: ast++.%.c
-	cl /L ast++.$*.lib $<
+	cl /L ast++.$*.lib $< > $@
 
 clean :
 	$(RM_F) $(EXE_FILES) $(OBJ_FILES)

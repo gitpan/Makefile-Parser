@@ -10,7 +10,7 @@ use Text::Balanced qw( gen_extract_tagged );
 
 #our $Debug = 0;
 our $Strict = 0;
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 our $Error;
 
 # usage: $class->new;
@@ -533,7 +533,7 @@ Makefile::Parser - A Simple Parser for Makefiles
 
 =head1 VERSION
 
-This document describes Makefile::Parser 0.12 released on March 10, 2007.
+This document describes Makefile::Parser 0.13 released on March 10, 2007.
 
 =head1 SYNOPSIS
 
@@ -541,14 +541,14 @@ This document describes Makefile::Parser 0.12 released on March 10, 2007.
 
   $parser = Makefile::Parser->new;
 
-  # Equivalent to ->parse('Makefile');
+  # equivalent to ->parse('Makefile');
   $parser->parse or
       die Makefile::Parser->error;
 
-  # Get last value assigned to the specified variable 'CC':
+  # get last value assigned to the specified variable 'CC':
   print $parser->var('CC');
 
-  # Get all the variable names defined in the Makefile:
+  # get all the variable names defined in the Makefile:
   @vars = $parser->vars;
   print join(' ', sort @vars);
 
@@ -558,25 +558,25 @@ This document describes Makefile::Parser 0.12 released on March 10, 2007.
   @tars = $parser->targets;  # Get all the targets
   $tar = join("\n", $tars[0]->commands);
 
-  # Get the default target, say, the first target
+  # get the default target, say, the first target
   # defined in Makefile:
   $tar = $parser->target;
 
   $tar = $parser->target('install');
-  # Get the name of the target, say, 'install' here:
+  # get the name of the target, say, 'install' here:
   print $tar->name;
 
-  # Get the dependencies for the target 'install':
+  # get the dependencies for the target 'install':
   @depends = $tar->depends;
 
-  # Access the shell command used to build the current target.
+  # access the shell command used to build the current target.
   @cmds = $tar->commands;
 
-  # Parse another file using the same Parser object:
+  # parse another file using the same Parser object:
   $parser->parse('Makefile.old') or
     die Makefile::Parser->error;
 
-  # Get the target who is specified by variable EXE_FILE
+  # get the target who is specified by variable EXE_FILE
   $tar = $parser->target($parser->var('EXE_FILE'));
 
 =head1 DESCRIPTION
@@ -776,7 +776,7 @@ This class provides the main interface to the Makefile parser.
 
 =over
 
-=item C<$obj = Makefile::Parser->new()>
+=item C<< $obj = Makefile::Parser->new() >>
 
 It's the constructor for the Parser class. You may provide the path
 of your Makefile as the argument which . It
@@ -784,11 +784,11 @@ is worth mentioning that the constructor will I<not> call ->parse method
 internally, so please remember calling ->parse after you construct
 the parser object.
 
-=item C<$obj->parse()>
+=item C<< $obj->parse() >>
 
-=item C<$obj->parse($Makefile_name)>
+=item C<< $obj->parse($Makefile_name) >>
 
-=item C<$obj->parse($Makefile_name, { var => value, ... })>
+=item C<< $obj->parse($Makefile_name, { var => value, ... }) >>
 
 This method parse the specified Makefile (default to 'Makefile').
 
@@ -803,12 +803,12 @@ You can also pass a hash reference to specify initial variables
 and their values. Note that these variables are treated as
 "defaults" so assignments in the makefile have higher priority.
 
-=item <$obj->error()>
+=item C<< $obj->error() >>
 
 It returns the error info set by the most recent failing operation, such
 as a parsing failure.
 
-=item <$obj->var($variable_name)>
+=item C<< $obj->var($variable_name) >>
 
 The var method returns the value of the given variable. Since the value of
 variables can be reset multiple times in the Makefile, so what you get
@@ -817,12 +817,12 @@ variable reassignment can be handled appropriately during parsing since
 the whole parsing process is a one-pass operation compared to the multiple-pass
 strategy used by the CPAN module L<Make>.
 
-=item C<@vars = $obj->vars>
+=item C<< @vars = $obj->vars >>
 
 This will return all the variables defined in the Makefile. The order may be
 quite different from the order they appear in the Makefile.
 
-=item C<$obj->target($target_name)>
+=item C<< $obj->target($target_name) >>
 
 This method returns a Makefile::Target object with the name specified.
 It will returns undef if the rules for the given target is not described
@@ -842,7 +842,7 @@ this, please use the following code:
 but this code will break if you have reassigned values to variable MY_LIB in
 your Makefile.
 
-=item C<@targets = $obj->targets()>
+=item C<< @targets = $obj->targets() >>
 
 This returns all the targets in Makefile. The order can be completely
 different from the order they appear in Makefile. So the following code
@@ -857,7 +857,7 @@ Please use the following syntax instead:
 
 The type of the returned list is an array of Makefile::Target objects.
 
-=item C<@roots = $obj->roots()>
+=item C<< @roots = $obj->roots() >>
 
 The C<roots> method returns the "root targets" in Makefile. The targets
 which there're no other targets depends on are called the I<root targets>.
@@ -914,7 +914,7 @@ converted to strings using their names.
 
 =over
 
-=item C<$class->new($target_name, $colon_type)>
+=item C<< $class->new($target_name, $colon_type) >>
 
 This is the constructor for class Makefile::Target. The first argument is the 
 target name which can't be a Makefile variable, the second one is a single
@@ -923,37 +923,32 @@ colon or a double colon which is used by the rule definition in Makefile.
 This method is usually called internally by the Makefile::Parser class. It
 doesn't make much sense to me if the user has a need to call it manually.
 
-=item C<$obj->name()>
+=item C<< $obj->name() >>
 
 It will return the name of the current Target object.
 
 
-=item C<@prereqs = $obj->prereqs>
+=item C<< @prereqs = $obj->prereqs >>
 
 You can get the list of prerequisites (or dependencies) for the current target.
 If no dependency is specified in the Makefile for the target, an empty list will
 be returned.
 
-=item C<@prereqs = $obj->depends>
 
-Alias to the C<prereqs> method. This method is only preserved for
+=item C<< @prereqs = $obj->depends >> Alias to the C<prereqs> method. This method is only preserved for
 the sake of backward-compatibility. Please use C<prereqs> instead.
 
-=item C<$obj->commands>
+=item C<< $obj->commands >>
 
 This method returns a list of shell commands used to build the current target.
 If no shell commands is given in the Makefile, an empty array will be returned.
 
 =back
 
-=head1 EXPORT
-
-None by default.
-
-=head1 REPOSITORY
+=head1 SVN REPOSITORY
 
 For the very latest version of this module, check out the source from
-L<https://svn.berlios.de/svnroot/repos/makefileps> (Subversion). There is
+L<http://svn.openfoundry.org/makefileparser/trunk/>. There is
 anonymous access to all.
 
 =head1 TODO
@@ -973,12 +968,6 @@ Implement rules with multiple targets
 =item *
 
 Serious support for "Recursively expanded" variables in GUN make
-
-=item *
-
-Provide a make tool named ``plmake'' that uses Makefile::Parser
-
-This stuff can be served as a good integration test.
 
 =item *
 
@@ -1021,17 +1010,16 @@ to L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=Makefile-Parser>.
 
 =head1 SEE ALSO
 
-L<Makefile::GraphViz>.
+L<plmake>, L<Makefile::GraphViz>, L<Make>.
 
 =head1 AUTHOR
 
-Agent Zhang, E<lt>agent2002@126.comE<gt>
+Agent Zhang, E<lt>agentzh@gmail.comE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (c) 2005 Agent Zhang.
+Copyright (c) 2005-2007 Agent Zhang. All rights reserved.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
 
-=cut

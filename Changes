@@ -1,5 +1,8 @@
 Revision history for Perl extension Makefile::Parser.
 
+0.13 2007-03-10
+* minor POD fixes: C<< ... >> and SVN repos URL
+
 0.12 2007-03-10
 * added the C<prereqs> method to Makefile::Parser
 * added POD accordingly (deprecated C<depends>)

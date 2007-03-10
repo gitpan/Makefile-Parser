@@ -1,5 +1,8 @@
 Revision history for Perl extension Makefile::Parser.
 
+0.14 2007-03-10
+* added some more POD to plmake
+
 0.13 2007-03-10
 * minor POD fixes: C<< ... >> and SVN repos URL
 

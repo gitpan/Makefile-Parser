@@ -10,7 +10,7 @@ use Text::Balanced qw( gen_extract_tagged );
 
 #our $Debug = 0;
 our $Strict = 0;
-our $VERSION = '0.13';
+our $VERSION = '0.14';
 our $Error;
 
 # usage: $class->new;
@@ -529,11 +529,11 @@ __END__
 
 =head1 NAME
 
-Makefile::Parser - A Simple Parser for Makefiles
+Makefile::Parser - A simple parser for Makefiles
 
 =head1 VERSION
 
-This document describes Makefile::Parser 0.13 released on March 10, 2007.
+This document describes Makefile::Parser 0.14 released on March 10, 2007.
 
 =head1 SYNOPSIS
 

@@ -84,13 +84,18 @@ plmake - Experimental "make" utility based on Makefile::Parser
 
 =head1 VERSION
 
-This document describes plmake 0.12 released on March 10, 2007.
+This document describes plmake 0.14 released on March 10, 2007.
 
 =head1 SYNOPSIS
 
     $ plmake
     $ plmake test
     $ plmake -f Makefile all
+
+=head1 DESCRIPTION
+
+This utility mainly serves as a quick check for what does and what does not
+work in L<Makefile::Parser>. Please don't use it in production.
 
 =head1 LIMITATIONS
 
@@ -130,5 +135,5 @@ modify it under the same terms as Perl itself.
 
 =head1 SEE ALSO
 
-L<Makefile::Parser>
+L<Makefile::Parser>, L<gvmake>, L<pmake>.
 

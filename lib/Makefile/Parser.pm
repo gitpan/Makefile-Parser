@@ -1,18 +1,16 @@
-#: Makefile/Parser.pm
-#: Implementation for Makefile::Parser
-#: v0.11
-#: Copyright (c) 2005 Agent Zhang
-#: 2005-09-24 2005-10-20
-
 package Makefile::Parser;
 
+use 5.006001;
 use strict;
-#use warnings;
-#use Data::Dumper;
+use warnings;
+
+use List::MoreUtils qw( uniq ) ;
+use Text::Balanced qw( gen_extract_tagged );
+#use Smart::Comments;
 
 #our $Debug = 0;
 our $Strict = 0;
-our $VERSION = '0.11';
+our $VERSION = '0.12';
 our $Error;
 
 # usage: $class->new;
@@ -29,13 +27,30 @@ sub new {
     return $self;
 }
 
+my $extract_interp_1 = gen_extract_tagged('\$[(]', '[)]', '');
+my $extract_interp_2 = gen_extract_tagged('\$[{]', '[}]', '');
+
+sub _extract_interp {
+    my ($res) = $extract_interp_1->($_[0]);
+    if (!$res) {
+        ($res) = $extract_interp_2->($_[0]);
+    }
+    $res;
+}
+
 # usage: $obj->parse($filename);
 sub parse {
-    my ($self, $file) = @_;
+    my ($self, $file, $vars) = @_;
     $file ||= 'Makefile';
+    my %init_vars = %$vars if $vars;
 
     $self->{_file} = $file;
-    $self->{_vars} = {};
+    $self->{_vars} = {
+        MAKE  => $0,
+        CC    => 'cc',
+        SHELL => 'sh',
+        %init_vars,
+    };
     undef $self->{_tars};
     undef $self->{_default};
     $self->{_depends} = {};
@@ -61,19 +76,25 @@ sub parse {
         #warn "(tar: $tar_name) Switching to tate $state with $_";
         #warn $state if $state ne 'S_IDLE';
         chomp;
+        #if (/TEST_VERBOSE=/) {
+            #### line: $_
+            #### state: $state
+        #}
 
         # expand the value of use-defined variables:
-        s/\$[\{\(](\w+)[\}\)]/exists $rvars->{$1} ? $rvars->{$1} : $&/ge;
+        #s/\$[\{\(](\w+)[\}\)]/exists $rvars->{$1} ? $rvars->{$1} : $&/ge;
+        $_ = $self->_process_refs($_);
 
         if (($state eq 'S_IDLE' or $state eq 'S_CMD') and /^(\w+) \s* :?= \s* (.*)$/xo) {
             $var = $1;
-            $value = $2 || '';
+            $value = $2;
             if ($value =~ s/\s+\\$//o) {
                 $state = 'S_IN_VAL' ;
             } else {
                 $value =~ s/\^\\$/\\/;
                 $rvars->{$var} = $value;
-                #warn "$var <=> $value\n";
+                ### variable: $var
+                ### value: $value
                 $state = 'S_IDLE';
             }
             #warn "$1 * $2 * $3";
@@ -97,7 +118,12 @@ sub parse {
             $tar_name = $1;
             $colon_type = $2;
             $depends = $3;
-            $tar_name =~ s/^\s+|\s+$//;
+            $tar_name =~ s/^\s+|\s+$//g;
+
+            my $cmd;
+            if ($depends =~ s/;(.*)//) {
+                $cmd = $1;
+            }
 
             # Ignore .SUFFIXES currently:
             next if $tar_name eq '.SUFFIXES';
@@ -121,6 +147,7 @@ sub parse {
             my @depends = split /\s+/, $depends;
             map { $self->{_depends}->{$_} = 1 } @depends;
             $tar->add_depend(@depends);
+            $tar->add_command($cmd) if defined $cmd;
         }
         elsif ($state eq 'S_IN_DEPENDS' and /^\s+ (.*)$/xo) {
             $depends = $1;
@@ -251,6 +278,173 @@ sub error {
     return $Error;
 }
 
+sub _process_refs {
+    my ($self, $s) = @_;
+    my @tokens = '';
+    while (1) {
+        if ($s =~ /\G[^\$]+/gc) {
+            $tokens[-1] .= $&;
+        } elsif (my $res = _extract_interp($s)) {
+            push @tokens, $res, '';
+        } elsif ($s =~ /\G\$./gc) {
+            push @tokens, $&, '';
+        } elsif ($s =~ /\G./gc) {
+            $tokens[-1] .= $&;
+        } else {
+            last;
+        }
+    }
+    ### tokens: @tokens
+    my $rvars = $self->{_vars};
+    for my $token (@tokens) {
+        if ($token =~ /^\$[{(](.*)[)}]$/) {
+            my $s = $1;
+            if ($s =~ /^([-\w]+)\s+(\S.*)$/) {
+                my $res = $self->_process_func_ref($1, $2);
+                if (defined $res) {
+                    $token = $res;
+                    next;
+                }
+            } elsif ($s =~ /^(\S+?):(\S+?)=(\S+)$/) {
+                my ($var, $from, $to) = ($1, $2, $3);
+                my $res = $self->_process_func_ref(
+                    'patsubst', "\%$from,\%$to,\$($var)"
+                );
+                if (defined $res) {
+                    $token = $res;
+                    next;
+                }
+            }
+            $token = $rvars->{$s} if exists $rvars->{$s};
+        } elsif ($token =~ /^\$[@<|]$/) {
+            next;
+        } elsif ($token =~ /^\$\$$/) {
+            $token = '$';
+        } elsif ($token =~ /^\$(.)$/) {
+            $token = $rvars->{$1} if exists $rvars->{$1};
+            ### found single-letter variable: $1
+            ### value: $rvars->{$1}
+            ### token: $token
+        } else {
+            next;
+        }
+    }
+    ### retval: join '', @tokens
+    return join '', @tokens;
+}
+
+sub _check_func_args ($$$) {
+    my ($name, $got, $expected) = @_;
+    if ($got < $expected) {
+        die "Insufficient arguments ($got) for function $name.\n";
+    } elsif ($got > $expected) {
+        die "Too many arguments ($got) for function $name.\n";
+    }
+}
+
+sub _pat2re ($@) {
+    my ($pat, $capture) = @_;
+    $pat = quotemeta $pat;
+    if ($capture) {
+        $pat =~ s/\\\%/(\\S*)/g;
+    } else {
+        $pat =~ s/\\\%/\\S*/g;
+    }
+    $pat;
+}
+
+sub _text2words ($) {
+    my ($text) = @_;
+    $text =~ s/^\s+|\s+$//g;
+    split /\s+/, $text;
+}
+
+sub _process_func_ref {
+    my ($self, $name, $args) = @_;
+    #### process func ref: $name
+    $name = $self->_process_refs($name);
+    $args =~ s/^\s+|\s+$//g;
+    my @args = map { $self->_process_refs($_) || $_ }
+        split(/,/, $args);
+    my $nargs = scalar(@args);
+    if ($name eq 'subst') {
+        _check_func_args($name, $nargs, 3);
+        my ($from, $to, $text) = @args;
+        $from = quotemeta($from);
+        $text =~ s/$from/$to/g;
+        return $text;
+    }
+    if ($name eq 'patsubst') {
+        _check_func_args($name, $nargs, 3);
+        my ($pattern, $replacement, $text) = @args;
+        my $re = _pat2re($pattern, 1);
+        $replacement =~ s/\%/\${1}/g;
+        $replacement = qq("$replacement");
+        #### pattern: $re
+        #### replacement: $replacement
+        #### text: $text
+        my $code = "s/^$re\$/$replacement/e";
+        #### code: $code
+        my @words = _text2words($text);
+        map { eval $code; } @words;
+        return join ' ', grep { $_ ne '' } @words;
+    }
+    if ($name eq 'strip') {
+        _check_func_args($name, $nargs, 1);
+        my ($string) = @args;
+        $string =~ s/^\s+|\s+$//g;
+        $string =~ s/\s+/ /g;
+        return $string;
+    }
+    if ($name eq 'findstring') {
+        _check_func_args($name, $nargs, 2);
+        my ($find, $in) = @args;
+        if (index($in, $find) >= 0) {
+            return $find;
+        } else {
+            return '';
+        }
+        my ($patterns, $text) = @args;
+        my @regexes = map { _pat2re($_) }
+            split /\s+/, $patterns;
+        ### regexes: @regexes
+        my $regex = join '|', map { "(?:$_)" } @regexes;
+        ### regex: $regex
+        my @words = _text2words($text);
+        return join ' ', grep /^$regex$/, @words;
+
+    }
+    if ($name eq 'filter') {
+        my ($patterns, $text) = @args;
+        my @regexes = map { _pat2re($_) }
+            split /\s+/, $patterns;
+        ### regexes: @regexes
+        my $regex = join '|', map { "(?:$_)" } @regexes;
+        ### regex: $regex
+        my @words = _text2words($text);
+        return join ' ', grep /^$regex$/, @words;
+    }
+    if ($name eq 'filter-out') {
+        my ($patterns, $text) = @args;
+        my @regexes = map { _pat2re($_) }
+            split /\s+/, $patterns;
+        ### regexes: @regexes
+        my $regex = join '|', map { "(?:$_)" } @regexes;
+        ### regex: $regex
+        my @words = _text2words($text);
+        return join ' ', grep !/^$regex$/, @words;
+    }
+    if ($name eq 'sort') {
+        _check_func_args($name, $nargs, 1);
+        # argument for sort: $args[0]
+        my ($list) = @args;
+        return join ' ', uniq sort split /\s+/, $list;
+    }
+    return undef;
+}
+
+#######################################
+
 package Makefile::Target;
 
 use overload
@@ -279,8 +473,12 @@ sub colon_type {
     return shift->{_colon_type};
 }
 
-sub depends {
+sub prereqs {
     return @{shift->{_depends}};
+}
+
+sub depends {
+    shift->prereqs(@_);
 }
 
 sub add_depend {
@@ -301,12 +499,41 @@ sub add_command {
     push @{$self->{_commands}}, @cmds;
 }
 
+sub run_commands {
+    my $self = shift;
+    my @cmd = $self->commands;
+    for my $cmd (@cmd) {
+        my ($quiet, $continue);
+        while (1) {
+            if ($cmd =~ s/^\s*\@//) {
+                $quiet = 1;
+            } elsif ($cmd =~ s/^\s*-//) {
+                $continue = 1;
+            } else {
+                last;
+            }
+        }
+        $cmd =~ s/^\s+|\s+$//gs;
+        next if $cmd =~ /^$/;
+        print "$cmd\n" unless $quiet;
+        # currently only 'sh' is specified
+        system('/bin/sh', '-c', $cmd);
+        if ($? != 0 && !$continue) {
+            die "$cmd returns nonzero status value: $?\n";
+        }
+    }
+}
+
 1;
 __END__
 
 =head1 NAME
 
 Makefile::Parser - A Simple Parser for Makefiles
+
+=head1 VERSION
+
+This document describes Makefile::Parser 0.12 released on March 10, 2007.
 
 =head1 SYNOPSIS
 
@@ -331,7 +558,8 @@ Makefile::Parser - A Simple Parser for Makefiles
   @tars = $parser->targets;  # Get all the targets
   $tar = join("\n", $tars[0]->commands);
 
-  # Get the default target, say, the first target defined in Makefile:
+  # Get the default target, say, the first target
+  # defined in Makefile:
   $tar = $parser->target;
 
   $tar = $parser->target('install');
@@ -353,7 +581,7 @@ Makefile::Parser - A Simple Parser for Makefiles
 
 =head1 DESCRIPTION
 
-This is a parser for Makefiles. At this very early stage, the parser
+This is a simple parser for Makefiles. At this very early stage, the parser
 only supports a limited set of features, so it may not recognize some
 advanced features provided by certain make tools like GNU make. Its initial
 purpose is to provide basic support for another module named 
@@ -362,16 +590,18 @@ specified by a Makefile using the amazing GraphViz library. The L<Make>
 module is not satisfactory for this purpose, so I decided to build one
 of my own.
 
-B<IMPORTANT!>
-This stuff is highly experimental and is currently at B<ALPHA> stage, so
-production use is strongly discouraged. Anyway, I have the plan to 
-improve this stuff unfailingly.
+B<WARNING> This stuff is highly experimental and is currently at B<pre-alpha>
+stage, so production use is strongly discouraged. Right now I'm working on
+a completely new implementation based on Makefile::DOM (which will land
+onto CPAN soon), but meanwhile the current core is still evolving continuously.
+The API is still in flux and will possibly change in the near future.
 
 =head2 SYNTAX SUPPORTED
 
-The ultimate goal of this parser is to support all the syntax of Win32
-NMAKE and GNU MAKE. But currently just a subset of features are
-implemented:
+The current parser implementation has been trying to support a common
+feature set of both MS NMAKE and GNU make. In the future, different
+formats of Makefiles will be
+handled by individual subclasses such as Makefile::Parser::Gmake.
 
 =over
 
@@ -398,7 +628,7 @@ Variable redefinition can be handled as well:
 
     %.obj : %.c
         $(CC) /nologo /c $<
-    
+
     CC = gcc
 
     %.o : %.c
@@ -408,7 +638,7 @@ Variable expansion sytax
 
     ${abc}
 
-is accepted, whereas Win32 NMake will complain about it.
+is accepted, whereas Win32 NMAKE will complain about it.
 
 Currently, environment variables defined in the command-line are not imported.
 
@@ -439,7 +669,7 @@ this early stage of this parser.
         perl txt2html.pl t\*.t t\*.ast
 
     clean:
-        copy t\pat_cover.ast.ast.html ..\ /Y 
+        copy t\pat_cover.ast.ast.html ..\ /Y
         $(RM_F) encoding.html encoding.pod state_mac.xml encoding.ast \
             pat_tree.ast state_mac.ast \
             main.cod pat_cover.pod pat_cover.html types.cod \
@@ -483,6 +713,54 @@ In suffix rules, B<no> prerequisites are allowed according to most make tools.
 
 =back
 
+=item Substitution References
+
+    objects = foo.o bar.o baz.o
+    sources = $(objects:.o=.c)  # foo.c bar.c baz.c
+
+=item Functions
+
+Currently the following GNU make functions are supported:
+
+=over
+
+=item subst
+
+    $(subst ee,EE,feet on the stree)
+
+=item patsubst
+
+    $(patsubst %.c,%.o,x.c.c bar.c)
+
+=item strip
+
+    $(strip $(some_var))
+
+=item findstring
+
+    $(findstring a,a b c)
+
+=item filter
+
+    sources := foo.c bar.c baz.s ugh.h
+    all: ; @echo '$(filter %.c %.s,$(sources))'
+
+=item filter-out
+
+    objects=main1.o foo.o main2.o bar.o
+    mains=main1.o main2.o
+    $(filter-out $(mains),$(objects))
+
+=item sort
+
+    $(sort foo bar lose)
+
+=back
+
+=item Commands after ';'
+
+    all : ; echo 'hello, world!'
+
 Specital variable $@ will be expanded using its value in the context.
 
 =back
@@ -498,7 +776,7 @@ This class provides the main interface to the Makefile parser.
 
 =over
 
-=item $class-E<gt>new()
+=item C<$obj = Makefile::Parser->new()>
 
 It's the constructor for the Parser class. You may provide the path
 of your Makefile as the argument which . It
@@ -506,22 +784,31 @@ is worth mentioning that the constructor will I<not> call ->parse method
 internally, so please remember calling ->parse after you construct
 the parser object.
 
-=item $obj-E<gt>parse(I<Makefile-name>)
+=item C<$obj->parse()>
+
+=item C<$obj->parse($Makefile_name)>
+
+=item C<$obj->parse($Makefile_name, { var => value, ... })>
 
 This method parse the specified Makefile (default to 'Makefile').
 
-When an error occurs during the parsing procedure, ->parse will return
+When an error occurs during the parsing procedure,
+C<parse> will return
 undef. Otherwise, a reference to Parser object itself is returned.
 It is recommended to check the return value every time you call this
-method. The detailed error info can be obtained by calling the ->error
-method.
+method. The detailed error info can be obtained by calling the
+C<error> method.
 
-=item $obj-E<gt>error
+You can also pass a hash reference to specify initial variables
+and their values. Note that these variables are treated as
+"defaults" so assignments in the makefile have higher priority.
+
+=item <$obj->error()>
 
 It returns the error info set by the most recent failing operation, such
 as a parsing failure.
 
-=item $obj-E<gt>var($variable_name)
+=item <$obj->var($variable_name)>
 
 The var method returns the value of the given variable. Since the value of
 variables can be reset multiple times in the Makefile, so what you get
@@ -530,12 +817,12 @@ variable reassignment can be handled appropriately during parsing since
 the whole parsing process is a one-pass operation compared to the multiple-pass
 strategy used by the CPAN module L<Make>.
 
-=item $obj-E<gt>vars
+=item C<@vars = $obj->vars>
 
 This will return all the variables defined in the Makefile. The order may be
 quite different from the order they appear in the Makefile.
 
-=item $obj-E<gt>target($target_name)
+=item C<$obj->target($target_name)>
 
 This method returns a Makefile::Target object with the name specified.
 It will returns undef if the rules for the given target is not described
@@ -555,7 +842,7 @@ this, please use the following code:
 but this code will break if you have reassigned values to variable MY_LIB in
 your Makefile.
 
-=item $obj-E<gt>targets
+=item C<@targets = $obj->targets()>
 
 This returns all the targets in Makefile. The order can be completely
 different from the order they appear in Makefile. So the following code
@@ -570,9 +857,9 @@ Please use the following syntax instead:
 
 The type of the returned list is an array of Makefile::Target objects.
 
-=item $obj-E<gt>roots
+=item C<@roots = $obj->roots()>
 
-The -E<gt>roots method returns the "root targets" in Makefile. The targets
+The C<roots> method returns the "root targets" in Makefile. The targets
 which there're no other targets depends on are called the I<root targets>.
 For example, I<install>, I<uninstall>, and I<veryclean>
 are all root targets in the Makefile generated by the I<ExtUtils::MakeMaker>
@@ -627,7 +914,7 @@ converted to strings using their names.
 
 =over
 
-=item $class-E<gt>new($target_name, $colon_type)
+=item C<$class->new($target_name, $colon_type)>
 
 This is the constructor for class Makefile::Target. The first argument is the 
 target name which can't be a Makefile variable, the second one is a single
@@ -636,16 +923,23 @@ colon or a double colon which is used by the rule definition in Makefile.
 This method is usually called internally by the Makefile::Parser class. It
 doesn't make much sense to me if the user has a need to call it manually.
 
-=item $obj-E<gt>name
+=item C<$obj->name()>
 
 It will return the name of the current Target object.
 
-=item $obj-E<gt>depends
 
-You can get the list dependencies for the current target. If no dependencies are
-specified in the Makefile for the target, an empty array will be returned.
+=item C<@prereqs = $obj->prereqs>
 
-=item $obj-E<gt>commands
+You can get the list of prerequisites (or dependencies) for the current target.
+If no dependency is specified in the Makefile for the target, an empty list will
+be returned.
+
+=item C<@prereqs = $obj->depends>
+
+Alias to the C<prereqs> method. This method is only preserved for
+the sake of backward-compatibility. Please use C<prereqs> instead.
+
+=item C<$obj->commands>
 
 This method returns a list of shell commands used to build the current target.
 If no shell commands is given in the Makefile, an empty array will be returned.
@@ -656,58 +950,67 @@ If no shell commands is given in the Makefile, an empty array will be returned.
 
 None by default.
 
-=head1 CODE COVERAGE
-
-I use L<Devel::Cover> to test the code coverage of my tests, below is the 
-L<Devel::Cover> report on this module's test suite for version 0.11:
-
-    ---------------------------- ------ ------ ------ ------ ------ ------ ------
-    File                           stmt   bran   cond    sub    pod   time  total
-    ---------------------------- ------ ------ ------ ------ ------ ------ ------
-    blib/lib/Makefile/Parser.pm    96.7   91.9   80.0   91.3  100.0  100.0   93.4
-    Total                          96.7   91.9   80.0   91.3  100.0  100.0   93.4
-    ---------------------------- ------ ------ ------ ------ ------ ------ ------
-
 =head1 REPOSITORY
 
 For the very latest version of this module, check out the source from
-L<https://svn.openfoundry.org/makefileparser> (Subversion). There is
+L<https://svn.berlios.de/svnroot/repos/makefileps> (Subversion). There is
 anonymous access to all.
 
 =head1 TODO
 
-The following syntax will be implemented at the first priority:
+The following syntax will be implemented soon:
 
 =over
 
-=item Serious support for "Recursively expanded" variables in GUN make
+=item *
 
-=item Provide a make tool named ``plmake'' that uses Makefile::Parser
+Implement double-colon rules
 
-This stuff can be served as a good integrated test.
+=item *
 
-=item Import environment variables
+Implement rules with multiple targets
 
-A quick example on Win32:
+=item *
 
-    C:\> set RM_F=perl -MExtUtils::Command -e rm_f
-    C:\> nmake clean
+Serious support for "Recursively expanded" variables in GUN make
 
-=item Comments that span multiple lines via trailing backslash
+=item *
 
-=item Lines that don't contain just comments
+Provide a make tool named ``plmake'' that uses Makefile::Parser
 
-=item Literal "#" escaped by a leading backslash
+This stuff can be served as a good integration test.
 
-=item The include directive
+=item *
 
-=item Look for 'GNUmakefile' and 'makefile' automatically
+Comments that span multiple lines via trailing backslash
 
-=item MAKEFILES Variable
+=item *
 
-=item MAKEFILE_LIST Variable
+Lines that don't contain just comments
 
-=item .VARIABLES Variable
+=item *
+
+Literal "#" escaped by a leading backslash
+
+=item *
+
+The include directive
+
+=item *
+
+Look for 'GNUmakefile' and 'makefile' automatically
+
+=item *
+
+MAKEFILES Variable
+
+=item *
+
+MAKEFILE_LIST Variable
+
+=item *
+
+.VARIABLES Variable
 
 =back
 

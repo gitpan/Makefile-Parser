@@ -2,7 +2,7 @@ NAME
     Makefile::Parser - A simple parser for Makefiles
 
 VERSION
-    This document describes Makefile::Parser 0.14 released on March 10,
+    This document describes Makefile::Parser 0.15 released on March 14,
     2007.
 
 SYNOPSIS
@@ -181,31 +181,31 @@ DESCRIPTION
             sources = $(objects:.o=.c)  # foo.c bar.c baz.c
 
     Functions
-        Currently the following GNU make functions are supported:
+        Currently the following GNU make makefile builtin functions are
+        supported:
 
-        subst
-                $(subst ee,EE,feet on the stree)
-
-        patsubst
-                $(patsubst %.c,%.o,x.c.c bar.c)
-
-        strip
-                $(strip $(some_var))
-
-        findstring
-                $(findstring a,a b c)
-
-        filter
-                sources := foo.c bar.c baz.s ugh.h
-                all: ; @echo '$(filter %.c %.s,$(sources))'
-
-        filter-out
-                objects=main1.o foo.o main2.o bar.o
-                mains=main1.o main2.o
-                $(filter-out $(mains),$(objects))
-
-        sort
-                $(sort foo bar lose)
+        " $(subst from,to,text) "
+        " $(patsubst pattern,replacement,text) "
+        " $(strip string) "
+        " $(findstring find,text) "
+        " $(filter pattern...,text) "
+        " $(filter-out pattern...,text) "
+        " $(sort list) "
+        " $(word n,text) "
+        " $(words text) "
+        " $(wordlist s,e,text) "
+        " $(firstword names...) "
+        " $(lastword names...) "
+        " $(dir names...) "
+        " $(notdir names...) "
+        " $(suffix names...) "
+        " $(basename names...) "
+        " $(addsuffix suffix,names...) "
+        " $(addprefix prefix,names...) "
+        " $(join list1,list2) "
+        " $(wildcard pattern...) "
+        " $(realpath names...) "
+        " $(abspath names...) "
 
     Commands after ';'
             all : ; echo 'hello, world!'
@@ -366,6 +366,11 @@ SVN REPOSITORY
 
 TODO
     The following syntax will be implemented soon:
+
+    *   Add support the remaining GNU make makefile builtin functions:
+
+        "if", "or", "and", "foreach", "shell", "warning", "error", "info",
+        and "eval".
 
     *   Implement double-colon rules
 

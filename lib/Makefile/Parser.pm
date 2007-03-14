@@ -4,13 +4,15 @@ use 5.006001;
 use strict;
 use warnings;
 
-use List::MoreUtils qw( uniq ) ;
+use File::Spec;
+use Cwd qw/ realpath /;
+use List::MoreUtils qw( uniq pairwise ) ;
 use Text::Balanced qw( gen_extract_tagged );
 #use Smart::Comments;
 
 #our $Debug = 0;
 our $Strict = 0;
-our $VERSION = '0.14';
+our $VERSION = '0.15';
 our $Error;
 
 # usage: $class->new;
@@ -278,28 +280,14 @@ sub error {
     return $Error;
 }
 
-sub _process_refs {
-    my ($self, $s) = @_;
-    my @tokens = '';
-    while (1) {
-        if ($s =~ /\G[^\$]+/gc) {
-            $tokens[-1] .= $&;
-        } elsif (my $res = _extract_interp($s)) {
-            push @tokens, $res, '';
-        } elsif ($s =~ /\G\$./gc) {
-            push @tokens, $&, '';
-        } elsif ($s =~ /\G./gc) {
-            $tokens[-1] .= $&;
-        } else {
-            last;
-        }
-    }
-    ### tokens: @tokens
+sub _solve_refs_in_tokens ($$) {
+    my ($self, $tokens) = @_;
+    return '' if !$tokens;
     my $rvars = $self->{_vars};
-    for my $token (@tokens) {
+    for my $token (@$tokens) {
         if ($token =~ /^\$[{(](.*)[)}]$/) {
             my $s = $1;
-            if ($s =~ /^([-\w]+)\s+(\S.*)$/) {
+            if ($s =~ /^([-\w]+)\s+(.*)$/) {
                 my $res = $self->_process_func_ref($1, $2);
                 if (defined $res) {
                     $token = $res;
@@ -329,17 +317,28 @@ sub _process_refs {
             next;
         }
     }
-    ### retval: join '', @tokens
-    return join '', @tokens;
+    ### retval: join '', @$tokens
+    return join '', @$tokens;
 }
 
-sub _check_func_args ($$$) {
-    my ($name, $got, $expected) = @_;
-    if ($got < $expected) {
-        die "Insufficient arguments ($got) for function $name.\n";
-    } elsif ($got > $expected) {
-        die "Too many arguments ($got) for function $name.\n";
+sub _process_refs {
+    my ($self, $s) = @_;
+    my @tokens = '';
+    while (1) {
+        if ($s =~ /\G[^\$]+/gc) {
+            $tokens[-1] .= $&;
+        } elsif (my $res = _extract_interp($s)) {
+            push @tokens, $res, '';
+        } elsif ($s =~ /\G\$./gc) {
+            push @tokens, $&, '';
+        } elsif ($s =~ /\G./gc) {
+            $tokens[-1] .= $&;
+        } else {
+            last;
+        }
     }
+    ### tokens: @tokens
+    return $self->_solve_refs_in_tokens(\@tokens);
 }
 
 sub _pat2re ($@) {
@@ -359,23 +358,92 @@ sub _text2words ($) {
     split /\s+/, $text;
 }
 
-sub _process_func_ref {
+sub _check_numeric ($$$$) {
+    my ($self, $func, $order, $n) = @_;
+    if ($n !~ /^\d+$/) {
+        warn $self->{_file}, ":$.: ",
+            "*** non-numeric $order argument to `$func' function: '$n'.  Stop.\n";
+        exit(2);
+    }
+}
+
+sub _check_greater_than ($$$$$) {
+    my ($self, $func, $order, $n, $value) = @_;
+    if ($n <= $value) {
+        warn $self->{_file}, ":$.: *** $order argument to `$func' function must be greater than $value.  Stop.\n";
+        exit(2);
+   }
+}
+
+sub _trim ($@) {
+    for (@_) {
+        s/^\s+|\s+$//g;
+    }
+}
+
+sub _split_args($$$$) {
+    my ($self, $func, $s, $n) = @_;
+    my @tokens = '';
+    my @args;
+    ### $n
+    while (@args <= $n) {
+        ### split args: @args
+        ### split tokens: @tokens
+        if ($s =~ /\G\s+/gc) {
+            $tokens[-1] .= $&;
+        }
+        elsif ($s =~ /\G[^\$,]+/gc) {
+            $tokens[-1] .= $&;
+        }
+        elsif ($s =~ /\G,/gc) {
+            if (@args < $n - 1) {
+                push @args, [@tokens];
+                @tokens = '';
+            } else {
+                $tokens[-1] .= $&;
+            }
+        }
+        elsif (my $res = _extract_interp($s)) {
+            push @tokens, $res, '';
+        }
+        elsif ($s =~ /\G\$./gc) {
+            push @tokens, $&, '';
+        }
+        elsif ($s =~ /\G./gc) {
+            $tokens[-1] .= $&;
+        }
+        else {
+            if (@args <= $n - 1) {
+                push @args, [@tokens];
+            }
+            last if @args == $n;
+            warn $self->{_file}, ":$.: ",
+            "*** insufficient number of arguments (",
+            scalar(@args), ") to function `$func'.  Stop.\n";
+            exit(2);
+        }
+    }
+    return @args;
+}
+
+sub _process_func_ref ($$$) {
     my ($self, $name, $args) = @_;
     #### process func ref: $name
     $name = $self->_process_refs($name);
-    $args =~ s/^\s+|\s+$//g;
-    my @args = map { $self->_process_refs($_) || $_ }
-        split(/,/, $args);
+    my @args;
     my $nargs = scalar(@args);
     if ($name eq 'subst') {
-        _check_func_args($name, $nargs, 3);
+        my @args = $self->_split_args($name, $args, 3);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        ### arguments: @args
         my ($from, $to, $text) = @args;
         $from = quotemeta($from);
         $text =~ s/$from/$to/g;
         return $text;
     }
     if ($name eq 'patsubst') {
-        _check_func_args($name, $nargs, 3);
+        my @args = $self->_split_args($name, $args, 3);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
         my ($pattern, $replacement, $text) = @args;
         my $re = _pat2re($pattern, 1);
         $replacement =~ s/\%/\${1}/g;
@@ -390,14 +458,16 @@ sub _process_func_ref {
         return join ' ', grep { $_ ne '' } @words;
     }
     if ($name eq 'strip') {
-        _check_func_args($name, $nargs, 1);
+        my @args = $self->_split_args($name, $args, 1);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
         my ($string) = @args;
         $string =~ s/^\s+|\s+$//g;
         $string =~ s/\s+/ /g;
         return $string;
     }
     if ($name eq 'findstring') {
-        _check_func_args($name, $nargs, 2);
+        my @args = $self->_split_args($name, $args, 2);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
         my ($find, $in) = @args;
         if (index($in, $find) >= 0) {
             return $find;
@@ -415,6 +485,8 @@ sub _process_func_ref {
 
     }
     if ($name eq 'filter') {
+        my @args = $self->_split_args($name, $args, 2);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
         my ($patterns, $text) = @args;
         my @regexes = map { _pat2re($_) }
             split /\s+/, $patterns;
@@ -425,6 +497,8 @@ sub _process_func_ref {
         return join ' ', grep /^$regex$/, @words;
     }
     if ($name eq 'filter-out') {
+        my @args = $self->_split_args($name, $args, 2);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
         my ($patterns, $text) = @args;
         my @regexes = map { _pat2re($_) }
             split /\s+/, $patterns;
@@ -435,11 +509,153 @@ sub _process_func_ref {
         return join ' ', grep !/^$regex$/, @words;
     }
     if ($name eq 'sort') {
-        _check_func_args($name, $nargs, 1);
-        # argument for sort: $args[0]
+        my @args = $self->_split_args($name, $args, 1);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
         my ($list) = @args;
+        _trim($list);
         return join ' ', uniq sort split /\s+/, $list;
     }
+    if ($name eq 'words') {
+        my @args = $self->_split_args($name, $args, 1);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($text) = @args;
+        my @words = _text2words($text);
+        return scalar(@words);
+    }
+    if ($name eq 'word') {
+        my @args = $self->_split_args($name, $args, 2);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($n, $text) = @args;
+        _trim($n);
+        $self->_check_numeric('word', 'first', $n);
+        $self->_check_greater_than('word', 'first', $n, 0);
+        my @words = _text2words($text);
+        return $n > @words ? '' : $words[$n - 1];
+    }
+    if ($name eq 'wordlist') {
+        my @args = $self->_split_args($name, $args, 3);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($s, $e, $text) = @args;
+        _trim($s, $e, $text);
+        $self->_check_numeric('wordlist', 'first', $s);
+        $self->_check_numeric('wordlist', 'second', $e);
+        $self->_check_greater_than('wordlist', 'first', $s, 0);
+        $self->_check_greater_than('wordlist', 'second', $s, -1);
+        my @words = _text2words($text);
+        if ($s > $e || $s > @words || $e == 0) {
+            return '';
+        }
+        $e = @words if $e > @words;
+        return join ' ', @words[$s-1..$e-1];
+    }
+    if ($name eq 'firstword') {
+        my @args = $self->_split_args($name, $args, 1);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($text) = @args;
+        my @words = _text2words($text);
+        return @words > 0 ? $words[0] : '';
+    }
+    if ($name eq 'lastword') {
+        my @args = $self->_split_args($name, $args, 1);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($text) = @args;
+        my @words = _text2words($text);
+        return @words > 0 ? $words[-1] : '';
+    }
+    if ($name eq 'dir') {
+        my @args = $self->_split_args($name, $args, 1);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($text) = @args;
+        my @names = _text2words($text);
+        return join ' ', map { /.*\// ? $& : './' } @names;
+    }
+    if ($name eq 'notdir') {
+        my @args = $self->_split_args($name, $args, 1);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($text) = @args;
+        my @names = _text2words($text);
+        return join ' ', map { s/.*\///; $_ } @names;
+    }
+    if ($name eq 'suffix') {
+        my @args = $self->_split_args($name, $args, 1);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($text) = @args;
+        my @names = _text2words($text);
+        my $s = join ' ', map { /.*(\..*)/ ? $1 : '' } @names;
+        $s =~ s/\s+$//g;
+        return $s;
+    }
+    if ($name eq 'basename') {
+        my @args = $self->_split_args($name, $args, 1);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($text) = @args;
+        my @names = _text2words($text);
+        my $s = join ' ', map { /(.*)\./ ? $1 : $_ } @names;
+        $s =~ s/\s+$//g;
+        return $s;
+    }
+    if ($name eq 'addsuffix') {
+        my @args = $self->_split_args($name, $args, 2);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($suffix, $text) = @args;
+        #_trim($suffix);
+        my @names = _text2words($text);
+        return join ' ', map { $_ . $suffix } @names;
+    }
+    if ($name eq 'addprefix') {
+        my @args = $self->_split_args($name, $args, 2);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($suffix, $text) = @args;
+        #_trim($suffix);
+        my @names = _text2words($text);
+        return join ' ', map { $suffix . $_ } @names;
+    }
+    if ($name eq 'join') {
+        my @args = $self->_split_args($name, $args, 2);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($list_1, $list_2) = @args;
+        my @list_1 = _text2words($list_1);
+        my @list_2 = _text2words($list_2);
+        return join ' ', pairwise {
+            no warnings 'uninitialized';
+            $a . $b
+        } @list_1, @list_2;
+    }
+    if ($name eq 'wildcard') {
+        my @args = $self->_split_args($name, $args, 1);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($pattern) = @args;
+        return join ' ', grep { -e $_ } glob $pattern;
+    }
+    if ($name eq 'realpath') {
+        no warnings 'uninitialized';
+        my @args = $self->_split_args($name, $args, 1);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($text) = @args;
+        my @names = _text2words($text);
+        return join ' ', map { realpath($_) } @names;
+    }
+    if ($name eq 'abspath') {
+        my @args = $self->_split_args($name, $args, 1);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($text) = @args;
+        my @names = _text2words($text);
+        my @paths = map { File::Spec->rel2abs($_) } @names;
+        for my $path (@paths) {
+            my @f = split '/', $path;
+            my @new_f;
+            for (@f) {
+                if ($_ eq '..') {
+                    pop @new_f;
+                } else {
+                    push @new_f, $_;
+                }
+            }
+            $path = join '/', @new_f;
+        }
+        return join ' ', @paths;
+    }
+
     return undef;
 }
 
@@ -533,7 +749,7 @@ Makefile::Parser - A simple parser for Makefiles
 
 =head1 VERSION
 
-This document describes Makefile::Parser 0.14 released on March 10, 2007.
+This document describes Makefile::Parser 0.15 released on March 14, 2007.
 
 =head1 SYNOPSIS
 
@@ -720,40 +936,54 @@ In suffix rules, B<no> prerequisites are allowed according to most make tools.
 
 =item Functions
 
-Currently the following GNU make functions are supported:
+Currently the following GNU make makefile builtin functions are
+supported:
 
 =over
 
-=item subst
+=item C< $(subst from,to,text) >
 
-    $(subst ee,EE,feet on the stree)
+=item C< $(patsubst pattern,replacement,text) >
 
-=item patsubst
+=item C< $(strip string) >
 
-    $(patsubst %.c,%.o,x.c.c bar.c)
+=item C< $(findstring find,text) >
 
-=item strip
+=item C< $(filter pattern...,text) >
 
-    $(strip $(some_var))
+=item C< $(filter-out pattern...,text) >
 
-=item findstring
+=item C< $(sort list) >
 
-    $(findstring a,a b c)
+=item C< $(word n,text) >
 
-=item filter
+=item C< $(words text) >
 
-    sources := foo.c bar.c baz.s ugh.h
-    all: ; @echo '$(filter %.c %.s,$(sources))'
+=item C< $(wordlist s,e,text) >
 
-=item filter-out
+=item C< $(firstword names...) >
 
-    objects=main1.o foo.o main2.o bar.o
-    mains=main1.o main2.o
-    $(filter-out $(mains),$(objects))
+=item C< $(lastword names...) >
 
-=item sort
+=item C< $(dir names...) >
 
-    $(sort foo bar lose)
+=item C< $(notdir names...) >
+
+=item C< $(suffix names...) >
+
+=item C< $(basename names...) >
+
+=item C< $(addsuffix suffix,names...) >
+
+=item C< $(addprefix prefix,names...) >
+
+=item C< $(join list1,list2) >
+
+=item C< $(wildcard pattern...) >
+
+=item C< $(realpath names...) >
+
+=item C< $(abspath names...) >
 
 =back
 
@@ -956,6 +1186,13 @@ anonymous access to all.
 The following syntax will be implemented soon:
 
 =over
+
+=item *
+
+Add support the remaining GNU make makefile builtin functions:
+
+C<if>, C<or>, C<and>, C<foreach>, C<shell>, C<warning>, C<error>,
+C<info>, and C<eval>.
 
 =item *
 

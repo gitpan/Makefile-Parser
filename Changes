@@ -1,5 +1,28 @@
 Revision history for Perl extension Makefile::Parser.
 
+0.15 2007-03-14
+* fixed the "too-many-args" issue
+* added support for the following GNU make makefile builtin functions:
+** word
+** wordlist
+** words
+** firstword
+** lastword
+** dir
+** notdir
+** suffix
+** basename
+** addprefix
+** join
+** wildcard
+** realpath
+** abspath
+* added _split_args method to do proper function arugment splitting
+* refactored the second half of _process_refs out to _solve_refs_in_tokens
+* merged the code of _check_func_args into _split_args
+* _split_args now splits func arguments lazily
+* updated the POD to reflect recent changes
+
 0.14 2007-03-10
 * added some more POD to plmake
 

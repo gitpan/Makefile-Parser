@@ -8,6 +8,8 @@ install_script  ('script/plmake');
 
 requires        ('Text::Balanced');
 requires        ('List::MoreUtils');
+requires        ('File::Spec');
+requires        ('Cwd');
 
 build_requires  ('Test::More' => 0.66);
 

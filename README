@@ -2,7 +2,7 @@ NAME
     Makefile::Parser - A simple parser for Makefiles
 
 VERSION
-    This document describes Makefile::Parser 0.15 released on March 14,
+    This document describes Makefile::Parser 0.16 released on March 16,
     2007.
 
 SYNOPSIS
@@ -206,6 +206,11 @@ DESCRIPTION
         " $(wildcard pattern...) "
         " $(realpath names...) "
         " $(abspath names...) "
+        " $(if condition,then-part[,else-part]) "
+        " $(or condition1[,condition2[,condition3...]]) "
+        " $(and condition1[,condition2[,condition3...]]) "
+        " $(foreach var,list,text) "
+        " $(shell cmd...) "
 
     Commands after ';'
             all : ; echo 'hello, world!'
@@ -369,8 +374,7 @@ TODO
 
     *   Add support the remaining GNU make makefile builtin functions:
 
-        "if", "or", "and", "foreach", "shell", "warning", "error", "info",
-        and "eval".
+        "warning", "error", "info", "origin", "call", "flavor", and "eval".
 
     *   Implement double-colon rules
 

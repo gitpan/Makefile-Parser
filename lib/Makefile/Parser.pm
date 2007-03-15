@@ -1,6 +1,5 @@
 package Makefile::Parser;
 
-use 5.006001;
 use strict;
 use warnings;
 
@@ -12,7 +11,7 @@ use Text::Balanced qw( gen_extract_tagged );
 
 #our $Debug = 0;
 our $Strict = 0;
-our $VERSION = '0.15';
+our $VERSION = '0.16';
 our $Error;
 
 # usage: $class->new;
@@ -94,6 +93,7 @@ sub parse {
                 $state = 'S_IN_VAL' ;
             } else {
                 $value =~ s/\^\\$/\\/;
+                $value =~ s/#.*//s;
                 $rvars->{$var} = $value;
                 ### variable: $var
                 ### value: $value
@@ -107,6 +107,7 @@ sub parse {
             if ($value !~ s/\s+\\$//o) {
                 $state = 'S_IDLE' ;
                 $value =~ s/\^\\$/\\/;
+                $value =~ s/#.*//s;
                 $rvars->{$var} = $value;
                 #warn "$var <=> $value\n";
             }
@@ -284,13 +285,14 @@ sub _solve_refs_in_tokens ($$) {
     my ($self, $tokens) = @_;
     return '' if !$tokens;
     my $rvars = $self->{_vars};
+    my @new_tokens;
     for my $token (@$tokens) {
         if ($token =~ /^\$[{(](.*)[)}]$/) {
             my $s = $1;
             if ($s =~ /^([-\w]+)\s+(.*)$/) {
                 my $res = $self->_process_func_ref($1, $2);
                 if (defined $res) {
-                    $token = $res;
+                    push @new_tokens, $res;
                     next;
                 }
             } elsif ($s =~ /^(\S+?):(\S+?)=(\S+)$/) {
@@ -299,26 +301,40 @@ sub _solve_refs_in_tokens ($$) {
                     'patsubst', "\%$from,\%$to,\$($var)"
                 );
                 if (defined $res) {
-                    $token = $res;
+                    push @new_tokens, $res;
                     next;
                 }
             }
-            $token = $rvars->{$s} if exists $rvars->{$s};
+            if (exists $rvars->{$s}) {
+                push @new_tokens, $rvars->{$s};
+                next;
+            } else {
+                # FIXME: undefined var == ''
+                #push @new_tokens, '';
+                #next;
+            }
         } elsif ($token =~ /^\$[@<|]$/) {
-            next;
+            # currently do nothing with the automatic vars
         } elsif ($token =~ /^\$\$$/) {
-            $token = '$';
+            push @new_tokens, '$';
+            next;
         } elsif ($token =~ /^\$(.)$/) {
-            $token = $rvars->{$1} if exists $rvars->{$1};
+            if (exists $rvars->{$1}) {
+                push @new_tokens, $rvars->{$1};
+                next;
+            } else {
+                # FIXME: undef var == ''
+                # push @new_tokens, '';
+                # next;
+            }
             ### found single-letter variable: $1
             ### value: $rvars->{$1}
             ### token: $token
-        } else {
-            next;
         }
+        push @new_tokens, $token;
     }
     ### retval: join '', @$tokens
-    return join '', @$tokens;
+    return join '', @new_tokens;
 }
 
 sub _process_refs {
@@ -382,7 +398,8 @@ sub _trim ($@) {
 }
 
 sub _split_args($$$$) {
-    my ($self, $func, $s, $n) = @_;
+    my ($self, $func, $s, $m, $n) = @_;
+    $n ||= $m;
     my @tokens = '';
     my @args;
     ### $n
@@ -390,14 +407,14 @@ sub _split_args($$$$) {
         ### split args: @args
         ### split tokens: @tokens
         if ($s =~ /\G\s+/gc) {
-            $tokens[-1] .= $&;
+            push @tokens, $&, '';
         }
         elsif ($s =~ /\G[^\$,]+/gc) {
             $tokens[-1] .= $&;
         }
         elsif ($s =~ /\G,/gc) {
             if (@args < $n - 1) {
-                push @args, [@tokens];
+                push @args, [grep { $_ ne '' } @tokens];
                 @tokens = '';
             } else {
                 $tokens[-1] .= $&;
@@ -414,9 +431,9 @@ sub _split_args($$$$) {
         }
         else {
             if (@args <= $n - 1) {
-                push @args, [@tokens];
+                push @args, [grep { $_ ne '' } @tokens];
             }
-            last if @args == $n;
+            last if @args >= $m and @args <= $n;
             warn $self->{_file}, ":$.: ",
             "*** insufficient number of arguments (",
             scalar(@args), ") to function `$func'.  Stop.\n";
@@ -424,6 +441,18 @@ sub _split_args($$$$) {
         }
     }
     return @args;
+}
+
+sub _trim_tokens ($) {
+    my $tokens = shift;
+    return if !@$tokens;
+    if ($tokens->[0] =~ /^\s+$/) {
+        shift @$tokens;
+    }
+    return if !@$tokens;
+    if ($tokens->[-1] =~ /^\s+$/) {
+        pop @$tokens;
+    }
 }
 
 sub _process_func_ref ($$$) {
@@ -655,6 +684,75 @@ sub _process_func_ref ($$$) {
         }
         return join ' ', @paths;
     }
+    if ($name eq 'shell') {
+        my @args = $self->_split_args($name, $args, 1);
+        map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($cmd) = @args;
+        my $output = `$cmd`;
+        $output =~ s/(?:\r?\n)+$//g;
+        $output =~ s/\r?\n/ /g;
+        return $output;
+    }
+    if ($name eq 'if') {
+        my @args = $self->_split_args($name, $args, 2, 3);
+        #map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        my ($condition, $then_part, $else_part) = @args;
+        _trim_tokens($condition);
+        $condition = $self->_solve_refs_in_tokens($condition);
+        return $condition eq '' ?
+                    $self->_solve_refs_in_tokens($else_part)
+               :
+                    $self->_solve_refs_in_tokens($then_part);
+    }
+    if ($name eq 'or') {
+        my @args = $self->_split_args($name, $args, 1, 1000_000_000);
+        #map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        for my $arg (@args) {
+            _trim_tokens($arg);
+            my $value = $self->_solve_refs_in_tokens($arg);
+            return $value if $value ne '';
+        }
+        return '';
+    }
+    if ($name eq 'and') {
+        my @args = $self->_split_args($name, $args, 1, 1000_000_000);
+        #map { $_ = $self->_solve_refs_in_tokens($_) } @args;
+        ### arguments for 'and': @args
+        my $value;
+        for my $arg (@args) {
+            _trim_tokens($arg);
+            $value = $self->_solve_refs_in_tokens($arg);
+            return '' if $value eq '';
+        }
+        return $value;
+    }
+    if ($name eq 'foreach') {
+        my @args = $self->_split_args($name, $args, 3);
+        my ($var, $list, $text) = @args;
+        $var = $self->_solve_refs_in_tokens($var);
+        $list = $self->_solve_refs_in_tokens($list);
+        my @words = _text2words($list);
+        # save the original status of $var
+        my $rvars = $self->{_vars};
+        my $not_exist = !exists $rvars->{$var};
+        my $old_val = $rvars->{$var};
+
+        my @results;
+        for my $word (@words) {
+            $rvars->{$var} = $word;
+            #warn "$word";
+            push @results, $self->_solve_refs_in_tokens($text);
+        }
+
+        # restore the original status of $var
+        if ($not_exist) {
+            delete $rvars->{$var};
+        } else {
+            $rvars->{$var} = $old_val;
+        }
+
+        return join ' ', @results;
+    }
 
     return undef;
 }
@@ -749,7 +847,7 @@ Makefile::Parser - A simple parser for Makefiles
 
 =head1 VERSION
 
-This document describes Makefile::Parser 0.15 released on March 14, 2007.
+This document describes Makefile::Parser 0.16 released on March 16, 2007.
 
 =head1 SYNOPSIS
 
@@ -985,6 +1083,16 @@ supported:
 
 =item C< $(abspath names...) >
 
+=item C< $(if condition,then-part[,else-part]) >
+
+=item C< $(or condition1[,condition2[,condition3...]]) >
+
+=item C< $(and condition1[,condition2[,condition3...]]) >
+
+=item C< $(foreach var,list,text) >
+
+=item C< $(shell cmd...) >
+
 =back
 
 =item Commands after ';'
@@ -1191,8 +1299,8 @@ The following syntax will be implemented soon:
 
 Add support the remaining GNU make makefile builtin functions:
 
-C<if>, C<or>, C<and>, C<foreach>, C<shell>, C<warning>, C<error>,
-C<info>, and C<eval>.
+C<warning>, C<error>, C<info>, C<origin>, C<call>,
+C<flavor>, and C<eval>.
 
 =item *
 

@@ -11,6 +11,8 @@ use Makefile::Parser;
 use Getopt::Std;
 #use Smart::Comments;
 
+$Makefile::Parser::Runtime = 1;
+
 my $parser;
 
 sub get_rule_by_target ($) {

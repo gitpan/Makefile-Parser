@@ -20,4 +20,4 @@ requires:
   List::MoreUtils: 0
   Text::Balanced: 0
   perl: 5.004
-version: 0.16
+version: 0.17

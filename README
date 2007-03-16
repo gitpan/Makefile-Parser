@@ -2,7 +2,7 @@ NAME
     Makefile::Parser - A simple parser for Makefiles
 
 VERSION
-    This document describes Makefile::Parser 0.16 released on March 16,
+    This document describes Makefile::Parser 0.17 released on March 16,
     2007.
 
 SYNOPSIS
@@ -210,7 +210,16 @@ DESCRIPTION
         " $(or condition1[,condition2[,condition3...]]) "
         " $(and condition1[,condition2[,condition3...]]) "
         " $(foreach var,list,text) "
+        " $(error argument...) "
+        " $(warning argument...) "
+        " $(info argument...) "
         " $(shell cmd...) "
+
+        Please consult the GNU make Manual for details and also take a look
+        at the following file for some use cases:
+
+        <http://svn.openfoundry.org/mdom/branches/gmake/t/gmake/sanity/func-
+        refs.t>
 
     Commands after ';'
             all : ; echo 'hello, world!'
@@ -351,15 +360,16 @@ The Makefile::Target Class
     "$obj->name()"
         It will return the name of the current Target object.
 
-    "@prereqs = $obj->prereqs"
+    "@prereqs = $obj->prereqs()"
         You can get the list of prerequisites (or dependencies) for the
         current target. If no dependency is specified in the Makefile for
         the target, an empty list will be returned.
 
-    "@prereqs = $obj->depends" Alias to the "prereqs" method. This method is
-    only preserved for the sake of backward-compatibility. Please use
-    "prereqs" instead.
-    "$obj->commands"
+    "@prereqs = $obj->depends()"
+        Alias to the "prereqs" method. This method is only preserved for the
+        sake of backward-compatibility. Please use "prereqs" instead.
+
+    "$obj->commands()"
         This method returns a list of shell commands used to build the
         current target. If no shell commands is given in the Makefile, an
         empty array will be returned.
@@ -374,7 +384,9 @@ TODO
 
     *   Add support the remaining GNU make makefile builtin functions:
 
-        "warning", "error", "info", "origin", "call", "flavor", and "eval".
+        "origin", "value", "call", "flavor", and "eval".
+
+    *   Add support for recursively-expanded variables.
 
     *   Implement double-colon rules
 

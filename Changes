@@ -1,5 +1,8 @@
 Revision history for Perl extension Makefile::Parser.
 
+0.17 2007-03-16
+* added support for the builtins 'error', 'warning', and 'info'
+
 0.16 2007-03-16
 * the parser now removes comments in variable assignments
 * added support for the following GNU make builtin functions:
@@ -11,7 +14,6 @@ Revision history for Perl extension Makefile::Parser.
 * removed /r from Parsre.pm
 * added support for the shell function
 * degraded the version of Test::More that Makefile::Parser requires
-
 
 0.15 2007-03-14
 * fixed the "too-many-args" issue

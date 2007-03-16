@@ -11,8 +11,9 @@ use Text::Balanced qw( gen_extract_tagged );
 
 #our $Debug = 0;
 our $Strict = 0;
-our $VERSION = '0.16';
+our $VERSION = '0.17';
 our $Error;
+our $Runtime = undef;
 
 # usage: $class->new;
 sub new {
@@ -753,6 +754,25 @@ sub _process_func_ref ($$$) {
 
         return join ' ', @results;
     }
+    if ($name eq 'error') {
+        my ($text) = $self->_split_args($name, $args, 1);
+        $text = $self->_solve_refs_in_tokens($text);
+        warn $self->{_file}, ":$.: *** $text.  Stop.\n";
+        exit(2) if $Runtime;
+        return '';
+    }
+    if ($name eq 'warning') {
+        my ($text) = $self->_split_args($name, $args, 1);
+        $text = $self->_solve_refs_in_tokens($text);
+        warn $self->{_file}, ":$.: $text\n";
+        return '';
+    }
+    if ($name eq 'info') {
+        my ($text) = $self->_split_args($name, $args, 1);
+        $text = $self->_solve_refs_in_tokens($text);
+        print "$text\n";
+        return '';
+    }
 
     return undef;
 }
@@ -847,7 +867,7 @@ Makefile::Parser - A simple parser for Makefiles
 
 =head1 VERSION
 
-This document describes Makefile::Parser 0.16 released on March 16, 2007.
+This document describes Makefile::Parser 0.17 released on March 16, 2007.
 
 =head1 SYNOPSIS
 
@@ -1091,9 +1111,20 @@ supported:
 
 =item C< $(foreach var,list,text) >
 
+=item C< $(error argument...) >
+
+=item C< $(warning argument...) >
+
+=item C< $(info argument...) >
+
 =item C< $(shell cmd...) >
 
 =back
+
+Please consult the GNU make Manual for details and
+also take a look at the following file for some use cases:
+
+L<http://svn.openfoundry.org/mdom/branches/gmake/t/gmake/sanity/func-refs.t>
 
 =item Commands after ';'
 
@@ -1266,17 +1297,19 @@ doesn't make much sense to me if the user has a need to call it manually.
 It will return the name of the current Target object.
 
 
-=item C<< @prereqs = $obj->prereqs >>
+=item C<< @prereqs = $obj->prereqs() >>
 
 You can get the list of prerequisites (or dependencies) for the current target.
 If no dependency is specified in the Makefile for the target, an empty list will
 be returned.
 
 
-=item C<< @prereqs = $obj->depends >> Alias to the C<prereqs> method. This method is only preserved for
+=item C<< @prereqs = $obj->depends() >>
+
+Alias to the C<prereqs> method. This method is only preserved for
 the sake of backward-compatibility. Please use C<prereqs> instead.
 
-=item C<< $obj->commands >>
+=item C<< $obj->commands() >>
 
 This method returns a list of shell commands used to build the current target.
 If no shell commands is given in the Makefile, an empty array will be returned.
@@ -1299,8 +1332,11 @@ The following syntax will be implemented soon:
 
 Add support the remaining GNU make makefile builtin functions:
 
-C<warning>, C<error>, C<info>, C<origin>, C<call>,
-C<flavor>, and C<eval>.
+C<origin>, C<value>, C<call>, C<flavor>, and C<eval>.
+
+=item *
+
+Add support for recursively-expanded variables.
 
 =item *
 

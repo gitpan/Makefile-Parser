@@ -23,10 +23,11 @@ no_index:
 requires: 
   Class::Accessor::Fast: 0
   Cwd: 0
+  File::Slurp: 0
   File::Spec: 0
   List::MoreUtils: 0
   List::Util: 0
   Makefile::DOM: 0.001
   Text::Balanced: 0
   perl: 5.004
-version: 0.202
+version: 0.203

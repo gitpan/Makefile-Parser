@@ -265,3 +265,106 @@ sub make_by_rule ($$$) {
 1;
 __END__
 
+=head1 NAME
+
+Makefile::AST::Evaluator - Evaluator and runtime for Makefile::AST instances
+
+=head1 SYNOPSIS
+
+    use Makefile::AST::Evaluator;
+
+    $Makefile::AST::Evaluator::JustPrint = 0;
+    $Makefile::AST::Evaluator::Quiet = 1;
+    $Makefile::AST::Evaluator::IgnoreErrors = 1;
+    $Makefile::AST::Evaluator::AlwaysMake = 1;
+    $Makefile::AST::Evaluator::Question = 1;
+
+    # $ast is a Makefile::AST instance:
+    my $eval = Makefile::AST::Evaluator->new($ast);
+
+    Makefile::AST::Evaluator->add_trigger(
+        firing_rule => sub {
+            my ($self, $rule, $ast_cmds) = @_;
+            my $target = $rule->target;
+            my $colon = $rule->colon;
+            my @normal_prereqs = @{ $rule->normal_prereqs };
+            # ...
+        }
+    );
+    $eval->set_required_target($user_makefile)
+    $eval->make($goal);
+
+=head1 DESCRIPTION
+
+This module implementes an evaluator or a runtime for makefile ASTs represented by L<Makefile::AST> instances.
+
+It "executes" the specified GNU make AST by the GNU makefile semantics. Note that, "execution" not necessarily mean building a project tree by firing makefile rule commands. Actually you can defining your own triggers by calling the L<add_trigger> method. (See the L</SYNOPSIS> for examples.) In other words, you can do more interesting things like plotting the call path tree of a Makefile using Graphviz, or translating the original makefile to another form (like what the L<makesimple> script does).
+
+It's worth mentioning that, most of the construction algorithm for topological graph s (including implicit rule application) have already been implemented in L<Makefile::AST> and its child node classes.
+
+=head1 CONFIGURE VARIABLES
+
+This module provides several package variables (i.e. static class variables) for controlling the behavior of the evaluator.
+
+Particularly the user needs to set the C<$AlwaysMake> variable to true and C<$Question> to true, if she wants to use the evaluator to do special tasks like plotting dependency graphs and translating GNU makefiles to other format.
+
+Setting L<$AlwaysMake> to true will force the evaluator to ignore the timestamps of external files appeared in the makefiles while setting L<$Question> to true will prevent the evaluator from executing the shell commands specified in the makefile rules.
+
+Here's the detailed listing for all the config variables:
+
+=over
+
+=item C<$Question>
+
+This variable corresponds to the command-line option C<-q> or <--question> in GNU make. Its purpose is to make the evaluator enter the "questioning mode", i.e., a mode in which C<make> will never try executing rule commands unless it has to, C<and> echoing is suppressed at the same time.
+
+=item C<$AlwaysMake>
+
+This variable corresponds to the command-line option C<-B> or C<--always-make>. It forces re-constructing all the rule's targets related to the goal, ignoring the timestamp or existence of targets' dependencies.
+
+=item C<$Quiet>
+
+It corresponds to GNU make's command-line option C<-s>, C<--silent>, or C<--quiet>. Its effect is to cancel the echoing of shell commands being executed.
+
+=item C<$JustPrint>
+
+This variable corresponds to GNU make's command line option C<-n>, C<--just-print>, C<--dry-run>, or C<--recon>. Its effect is to print out the shell commands requiring execution but without actually executing them.
+
+=item C<$IgnoreErrors>
+
+This variable corresponds to GNU make's command line option C<-i> or C<--ignore-errors>，It's used to ignore the errors of shell commands being executed during the make process. The default behavior is quitting as soon as a shell command without the C<-> modifier fails.
+
+=back
+
+=head1 CLASS TRIGGERS
+
+The C<make_by_rule> method of this class defines a trigger named C<firing_rule> via the L<Class::Trait> module. Everytime the C<make_by_rule> method reaches the trigger point, it will invoke the user's processing handler with the following three arguments: the self object, the L<Makefile::AST::Rule> object, and the corresponding C<Makefile::AST::Command> object in the context.
+
+By registering his own processing handlers for the C<firing_rule> trigger, the user's code can reuse the evaluator to do his own cool things without traversing the makefile ASTs himself.
+
+See the L</SYNOPSIS> for code examples.
+
+=head1 SVN REPOSITORY
+
+For the very latest version of this script, check out the source from
+
+L<http://svn.openfoundry.org/makefileparser/branches/gmake-db>.
+
+There is anonymous access to all.
+
+=head1 AUTHOR
+
+Agent Zhang C<< <agentzh@yahoo.cn> >>
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (c) 2007-2008 by Agent Zhang (agentzh).
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself.
+
+=head1 SEE ALSO
+
+L<Makefile::AST>, L<Makefile::Parser::GmakeDB>, L<pgmake-db>,
+L<makesimple>, L<Makefile::DOM>.
+

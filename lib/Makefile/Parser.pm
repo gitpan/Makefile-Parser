@@ -11,7 +11,7 @@ use Text::Balanced qw( gen_extract_tagged );
 
 #our $Debug = 0;
 our $Strict = 0;
-our $VERSION = '0.205';
+our $VERSION = '0.206';
 our $Error;
 our $Runtime = undef;
 
@@ -867,7 +867,7 @@ Makefile::Parser - A simple parser for Makefiles
 
 =head1 VERSION
 
-This document describes Makefile::Parser 0.205 released on March 10, 2008.
+This document describes Makefile::Parser 0.206 released on March 10, 2008.
 
 =head1 SYNOPSIS
 
@@ -916,19 +916,18 @@ This document describes Makefile::Parser 0.205 released on March 10, 2008.
 =head1 DESCRIPTION
 
 This is a simple parser for Makefiles. At this very early stage, the parser
-only supports a limited set of features, so it may not recognize some
+only supports a limited set of features, so it may not recognize most of the
 advanced features provided by certain make tools like GNU make. Its initial
-purpose is to provide basic support for another module named 
+purpose is to provide basic support for another module named
 L<Makefile::GraphViz>, which is aimed to render the building process
-specified by a Makefile using the amazing GraphViz library. The L<Make> 
+specified by a Makefile using the amazing GraphViz library. The L<Make>
 module is not satisfactory for this purpose, so I decided to build one
 of my own.
 
 B<WARNING> This stuff is highly experimental and is currently at B<pre-alpha>
-stage, so production use is strongly discouraged. Right now I'm working on
-a completely new implementation based on Makefile::DOM (which will land
-onto CPAN soon), but meanwhile the current core is still evolving continuously.
-The API is still in flux and will possibly change in the near future.
+stage, so production use is strongly discouraged. Right now it's just a toy for parsing trivial makefiles.
+
+If you're looking for something more serious for parsing GNU makefiles, please see L<Makefile::Parser::GmakeDB> instead. The GmakeDB parser has passed 51% of GNU make's official test suite as of this writing.
 
 =head2 SYNTAX SUPPORTED
 
@@ -1319,7 +1318,7 @@ If no shell commands is given in the Makefile, an empty array will be returned.
 =head1 SVN REPOSITORY
 
 For the very latest version of this module, check out the source from
-L<http://svn.openfoundry.org/makefileparser/trunk/>. There is
+L<http://svn.openfoundry.org/makefileparser/branches/gmake-db>. There is
 anonymous access to all.
 
 =head1 TODO
@@ -1395,11 +1394,11 @@ L<plmake>, L<makesimple>, L<Makefile::Parser::GmakeDB>, L<Makefile::GraphViz>, L
 
 =head1 AUTHOR
 
-Agent Zhang, E<lt>agentzh@gmail.comE<gt>
+Agent Zhang, C<< <agentzh@yahoo.cn> >>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (c) 2005-2007 Agent Zhang.
+Copyright (c) 2005-2008 by Agent Zhang (agentzh).
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

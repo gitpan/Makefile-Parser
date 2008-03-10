@@ -2,7 +2,7 @@ NAME
     Makefile::Parser - A simple parser for Makefiles
 
 VERSION
-    This document describes Makefile::Parser 0.205 released on March 10,
+    This document describes Makefile::Parser 0.206 released on March 10,
     2008.
 
 SYNOPSIS
@@ -51,19 +51,20 @@ SYNOPSIS
 DESCRIPTION
     This is a simple parser for Makefiles. At this very early stage, the
     parser only supports a limited set of features, so it may not recognize
-    some advanced features provided by certain make tools like GNU make. Its
-    initial purpose is to provide basic support for another module named
-    Makefile::GraphViz, which is aimed to render the building process
+    most of the advanced features provided by certain make tools like GNU
+    make. Its initial purpose is to provide basic support for another module
+    named Makefile::GraphViz, which is aimed to render the building process
     specified by a Makefile using the amazing GraphViz library. The Make
     module is not satisfactory for this purpose, so I decided to build one
     of my own.
 
     WARNING This stuff is highly experimental and is currently at pre-alpha
-    stage, so production use is strongly discouraged. Right now I'm working
-    on a completely new implementation based on Makefile::DOM (which will
-    land onto CPAN soon), but meanwhile the current core is still evolving
-    continuously. The API is still in flux and will possibly change in the
-    near future.
+    stage, so production use is strongly discouraged. Right now it's just a
+    toy for parsing trivial makefiles.
+
+    If you're looking for something more serious for parsing GNU makefiles,
+    please see Makefile::Parser::GmakeDB instead. The GmakeDB parser has
+    passed 51% of GNU make's official test suite as of this writing.
 
   SYNTAX SUPPORTED
     The current parser implementation has been trying to support a common
@@ -376,8 +377,8 @@ The Makefile::Target Class
 
 SVN REPOSITORY
     For the very latest version of this module, check out the source from
-    <http://svn.openfoundry.org/makefileparser/trunk/>. There is anonymous
-    access to all.
+    <http://svn.openfoundry.org/makefileparser/branches/gmake-db>. There is
+    anonymous access to all.
 
 TODO
     The following syntax will be implemented soon:
@@ -418,10 +419,10 @@ SEE ALSO
     plmake, makesimple, Makefile::Parser::GmakeDB, Makefile::GraphViz, Make.
 
 AUTHOR
-    Agent Zhang, <agentzh@gmail.com>
+    Agent Zhang, "<agentzh@yahoo.cn>"
 
 COPYRIGHT AND LICENSE
-    Copyright (c) 2005-2007 Agent Zhang.
+    Copyright (c) 2005-2008 by Agent Zhang (agentzh).
 
     This library is free software; you can redistribute it and/or modify it
     under the same terms as Perl itself.

@@ -80,7 +80,7 @@ $ENV{MAKELEVEL} = $level;
 $ENV{MAKESIMPLE_LEVEL} = $level;
 
 my ($stdout, $stderr);
-run3 ['/usr/bin/env', 'make', '-pqRrs', '-f', $makefile, @var_defs], undef, \$stdout, \$stderr;
+run3 ['make', '-pqRrs', '-f', $makefile, @var_defs], undef, \$stdout, \$stderr;
 ## $stderr
 my $exit_code = $? >> 8;
 if ($stderr and $exit_code == 2 and $stderr !~ /^make:/) {

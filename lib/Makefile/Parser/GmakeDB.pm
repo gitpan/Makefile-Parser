@@ -10,7 +10,7 @@ use List::MoreUtils qw( none );
 use MDOM::Document::Gmake;
 use Makefile::AST;
 
-our $VERSION = '0.211';
+our $VERSION = '0.212';
 
 # XXX This should not be hard-coded this way...
 our @Suffixes = (
@@ -391,7 +391,7 @@ Makefile::Parser::GmakeDB - GNU makefile parser using GNU make's database dump
 
 =head1 VERSION
 
-This document describes Makefile::Parser::GmakeDB 0.211 released on March 16, 2008.
+This document describes Makefile::Parser::GmakeDB 0.212 released on 17 August 2011.
 
 =head1 SYNOPSIS
 
@@ -504,17 +504,17 @@ I've already reported this issue to the GNU make team as Savannah bug #20069.
 
 For the very latest version of this script, check out the source from
 
-L<http://svn.openfoundry.org/makefileparser/branches/gmake-db>.
+L<http://github.com/agentzh/makefile-parser-pm>.
 
 There is anonymous access to all.
 
 =head1 AUTHOR
 
-Agent Zhang C<< <agentzh@yahoo.cn> >>
+Zhang "agentzh" Yichun C<< <agentzh@gmail.com> >>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (c) 2005-2008 by Agent Zhang (agentzh).
+Copyright (c) 2005-2008 by Zhang "agentzh" Yichun (agentzh).
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

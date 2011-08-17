@@ -11,7 +11,7 @@ use Text::Balanced qw( gen_extract_tagged );
 
 #our $Debug = 0;
 our $Strict = 0;
-our $VERSION = '0.211';
+our $VERSION = '0.212';
 our $Error;
 our $Runtime = undef;
 
@@ -875,13 +875,15 @@ sub run_commands {
 1;
 __END__
 
+=encoding utf-8
+
 =head1 NAME
 
 Makefile::Parser - A simple parser for Makefiles
 
 =head1 VERSION
 
-This document describes Makefile::Parser 0.211 released on March 16, 2008.
+This document describes Makefile::Parser 0.212 released on 17 August 2011.
 
 =head1 SYNOPSIS
 
@@ -1140,7 +1142,7 @@ supported:
 Please consult the GNU make Manual for details and
 also take a look at the following file for some use cases:
 
-L<http://svn.openfoundry.org/mdom/branches/gmake/t/gmake/sanity/func-refs.t>
+L<http://github.com/agentzh/makefile-dom-pm/tree/master/t/gmake/sanity/func-refs.t>
 
 =item Commands after ';'
 
@@ -1335,7 +1337,7 @@ If no shell commands is given in the Makefile, an empty array will be returned.
 =head1 SVN REPOSITORY
 
 For the very latest version of this module, check out the source from
-L<http://svn.openfoundry.org/makefileparser/branches/gmake-db>. There is
+L<http://github.com/agentzh/makefile-parser-pm>. There is
 anonymous access to all.
 
 =head1 TODO
@@ -1407,11 +1409,11 @@ L<plmake>, L<makesimple>, L<Makefile::Parser::GmakeDB>, L<Makefile::GraphViz>, L
 
 =head1 AUTHOR
 
-Agent Zhang, C<< <agentzh@yahoo.cn> >>
+Zhang "agentzh" Yichun, C<< <agentzh@gmail.com> >>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (c) 2005-2008 by Agent Zhang (agentzh).
+Copyright (c) 2005-2011 by Zhang "agentzh" Yichun (章亦春).
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

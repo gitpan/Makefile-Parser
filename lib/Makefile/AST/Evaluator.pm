@@ -3,7 +3,7 @@ package Makefile::AST::Evaluator;
 use strict;
 use warnings;
 
-our $VERSION = '0.211';
+our $VERSION = '0.212';
 
 #use Smart::Comments;
 #use Smart::Comments '####';
@@ -351,17 +351,17 @@ See the L</SYNOPSIS> for code examples.
 
 For the very latest version of this script, check out the source from
 
-L<http://svn.openfoundry.org/makefileparser/branches/gmake-db>.
+L<http://github.com/agentzh/makefile-parser-pm>.
 
 There is anonymous access to all.
 
 =head1 AUTHOR
 
-Agent Zhang C<< <agentzh@yahoo.cn> >>
+Zhang "agentzh" Yichun C<< <agentzh@gmail.com> >>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (c) 2007-2008 by Agent Zhang (agentzh).
+Copyright (c) 2007-2008 by Zhang "agentzh" Yichun (agentzh).
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

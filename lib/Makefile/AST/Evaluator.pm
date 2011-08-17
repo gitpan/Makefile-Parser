@@ -3,7 +3,7 @@ package Makefile::AST::Evaluator;
 use strict;
 use warnings;
 
-our $VERSION = '0.213';
+our $VERSION = '0.214';
 
 #use Smart::Comments;
 #use Smart::Comments '####';
@@ -347,7 +347,7 @@ By registering his own processing handlers for the C<firing_rule> trigger, the u
 
 See the L</SYNOPSIS> for code examples.
 
-=head1 SVN REPOSITORY
+=head1 CODE REPOSITORY
 
 For the very latest version of this script, check out the source from
 

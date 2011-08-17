@@ -3,7 +3,7 @@ package Makefile::AST;
 use strict;
 use warnings;
 
-our $VERSION = '0.213';
+our $VERSION = '0.214';
 
 #use Smart::Comments;
 #use Smart::Comments '####';
@@ -821,7 +821,7 @@ Used to encapsulate information regarding makefile rule commands (e.g. command b
 
 Adding support for other flavors' makes into this AST libary should make a huge amount of sense. The most interesting candiate is Microsoft's NMAKE.
 
-=head1 SVN REPOSITORY
+=head1 CODE REPOSITORY
 
 For the very latest version of this script, check out the source from
 
